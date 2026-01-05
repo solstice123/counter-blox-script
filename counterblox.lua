@@ -1,128 +1,153 @@
--- Counter-Blox Script by Colin
+-- Counter-Blox Script by Colin v2
 -- Inject with preferred executor
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
 
 local ESP = {Enabled = true}
-local Aimbot = {Enabled = false, FOV = 100, Smoothing = 0.2}
+local Aimbot = {Enabled = false, FOV = 70, Smoothing = 0.1, TargetPart = "Head"}
 local Menu = {Open = true}
 
--- Aimbot Variables
-local Camera = Workspace.CurrentCamera
-local CurrentTarget = nil
-
--- ESP Box Drawing Function
-local function DrawESP(player)
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local Box = Drawing.new("Square")
-    Box.Visible = false
-    Box.Color = Color3.fromRGB(255, 0, 0)
-    Box.Thickness = 2
-    Box.Filled = false
-
-    local NameTag = Drawing.new("Text")
-    NameTag.Visible = false
-    NameTag.Color = Color3.fromRGB(255, 255, 255)
-    NameTag.Size = 16
-    NameTag.Center = true
-    NameTag.Outline = true
-
-    local HealthTag = Drawing.new("Text")
-    HealthTag.Visible = false
-    HealthTag.Color = Color3.fromRGB(0, 255, 0)
-    HealthTag.Size = 14
-    HealthTag.Center = true
-    HealthTag.Outline = true
-
-    local connection
-    connection = RunService.RenderStepped:Connect(function()
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and ESP.Enabled and player ~= LocalPlayer then
-            local rootPart = player.Character.HumanoidRootPart
-            local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            if onScreen then
-                local scale = 1000 / position.Z
-                Box.Size = Vector2.new(scale * 2, scale * 3)
-                Box.Position = Vector2.new(position.X - Box.Size.X / 2, position.Y - Box.Size.Y / 2)
-                Box.Visible = true
-
-                NameTag.Text = player.Name
-                NameTag.Position = Vector2.new(position.X, position.Y - Box.Size.Y / 2 - 20)
-                NameTag.Visible = true
-
-                local humanoid = player.Character:FindFirstChild("Humanoid")
-                if humanoid then
-                    HealthTag.Text = "HP: " .. math.floor(humanoid.Health)
-                    HealthTag.Position = Vector2.new(position.X, position.Y + Box.Size.Y / 2 + 5)
-                    HealthTag.Visible = true
-                end
-            else
-                Box.Visible = false
-                NameTag.Visible = false
-                HealthTag.Visible = false
-            end
-        else
-            Box.Visible = false
-            NameTag.Visible = false
-            HealthTag.Visible = false
-            if not player or not player.Parent then
-                connection:Disconnect()
-                Box:Remove()
-                NameTag:Remove()
-                HealthTag:Remove()
-            end
+-- Get enemy team function
+function IsEnemy(player)
+    if game:GetService("Teams") then
+        local myTeam = LocalPlayer.Team
+        local theirTeam = player.Team
+        if myTeam and theirTeam then
+            return myTeam ~= theirTeam
         end
-    end)
+    end
+    -- Fallback: anyone who isn't me is an enemy
+    return player ~= LocalPlayer
 end
 
--- Aimbot Logic
-function GetClosestPlayerToMouse()
-    local MaxDist, Closest = Aimbot.FOV
-    for i, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-            local Pos, OnScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
-            if OnScreen then
-                local MousePos = Vector2.new(Mouse.X, Mouse.Y)
-                local Diff = Vector2.new(Pos.X, Pos.Y) - MousePos
-                local Mag = Diff.Magnitude
-                if Mag < MaxDist then
-                    MaxDist = Mag
-                    Closest = v
+-- ESP Drawing
+local drawings = {}
+local function UpdateESP()
+    for player, drawing in pairs(drawings) do
+        if drawing.Box then drawing.Box:Remove() end
+        if drawing.Name then drawing.Name:Remove() end
+        if drawing.Health then drawing.Health:Remove() end
+    end
+    drawings = {}
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and IsEnemy(player) then
+            drawings[player] = {
+                Box = Drawing.new("Square"),
+                Name = Drawing.new("Text"),
+                Health = Drawing.new("Text")
+            }
+        end
+    end
+end
+
+UpdateESP()
+Players.PlayerAdded:Connect(UpdateESP)
+Players.PlayerRemoving:Connect(UpdateESP)
+
+RunService.RenderStepped:Connect(function()
+    for player, drawing in pairs(drawings) do
+        local box = drawing.Box
+        local name = drawing.Name
+        local health = drawing.Health
+        
+        box.Visible = false
+        name.Visible = false
+        health.Visible = false
+        
+        if ESP.Enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+            local rootPart = player.Character.HumanoidRootPart
+            local humanoid = player.Character.Humanoid
+            local head = player.Character:FindFirstChild("Head")
+            
+            if rootPart and humanoid and humanoid.Health > 0 then
+                local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    -- Calculate box size
+                    local scale = 1000 / position.Z
+                    local size = Vector2.new(scale * 2, scale * 3)
+                    local pos = Vector2.new(position.X - size.X / 2, position.Y - size.Y / 2)
+                    
+                    -- Box
+                    box.Size = size
+                    box.Position = pos
+                    box.Color = Color3.fromRGB(255, 50, 50)
+                    box.Thickness = 2
+                    box.Filled = false
+                    box.Visible = true
+                    
+                    -- Name
+                    name.Text = player.Name
+                    name.Position = Vector2.new(position.X, pos.Y - 20)
+                    name.Size = 16
+                    name.Color = Color3.fromRGB(255, 255, 255)
+                    name.Outline = true
+                    name.Visible = true
+                    
+                    -- Health
+                    health.Text = "HP: " .. math.floor(humanoid.Health)
+                    health.Position = Vector2.new(position.X, pos.Y + size.Y + 5)
+                    health.Size = 14
+                    health.Color = Color3.fromRGB(50, 255, 50)
+                    health.Outline = true
+                    health.Visible = true
                 end
             end
         end
     end
-    return Closest
+end)
+
+-- Improved Aimbot
+function GetClosestPlayerToMouse()
+    local closestPlayer = nil
+    local shortestDistance = Aimbot.FOV
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and IsEnemy(player) then
+            local character = player.Character
+            if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+                local targetPart = character:FindFirstChild(Aimbot.TargetPart)
+                if targetPart then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if onScreen then
+                        local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+                        local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                        local distance = (mousePos - targetPos).Magnitude
+                        
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
 end
 
 RunService.RenderStepped:Connect(function()
     if Aimbot.Enabled then
-        CurrentTarget = GetClosestPlayerToMouse()
-        if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
-            local TargetPos = CurrentTarget.Character.HumanoidRootPart.Position
-            local CurrentPos = Camera.CFrame.Position
-            local NewCFrame = CFrame.new(CurrentPos, TargetPos)
-            Camera.CFrame = Camera.CFrame:Lerp(NewCFrame, Aimbot.Smoothing)
+        local targetPlayer = GetClosestPlayerToMouse()
+        if targetPlayer and targetPlayer.Character then
+            local targetPart = targetPlayer.Character:FindFirstChild(Aimbot.TargetPart)
+            if targetPart then
+                local targetPosition = targetPart.Position
+                local cameraPosition = Camera.CFrame.Position
+                local newCFrame = CFrame.new(cameraPosition, targetPosition)
+                Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Aimbot.Smoothing)
+            end
         end
     end
 end)
 
--- Setup ESP for all players
-for i, v in pairs(Players:GetPlayers()) do
-    if v ~= LocalPlayer then
-        coroutine.wrap(DrawESP)(v)
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    coroutine.wrap(DrawESP)(player)
-end)
-
--- Simple Menu GUI
+-- Menu GUI
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local ESPToggle = Instance.new("TextButton")
@@ -131,43 +156,49 @@ local Title = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
 ScreenGui.Name = "ColinMenu"
+ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 200, 0, 150)
-Frame.Position = UDim2.new(0.1, 0, 0.1, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.Size = UDim2.new(0, 220, 0, 180)
+Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "Colin's Script"
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+Title.Text = "Colin's Script v2"
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
 
 ESPToggle.Parent = Frame
-ESPToggle.Text = "ESP: ON"
-ESPToggle.Size = UDim2.new(0.8, 0, 0, 30)
-ESPToggle.Position = UDim2.new(0.1, 0, 0.3, 0)
-ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+ESPToggle.Text = "ESP (ENEMIES ONLY): ON"
+ESPToggle.Size = UDim2.new(0.9, 0, 0, 35)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPToggle.Font = Enum.Font.SourceSans
 ESPToggle.MouseButton1Click:Connect(function()
     ESP.Enabled = not ESP.Enabled
-    ESPToggle.Text = ESP.Enabled and "ESP: ON" or "ESP: OFF"
-    ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    ESPToggle.Text = "ESP (ENEMIES ONLY): " .. (ESP.Enabled and "ON" or "OFF")
+    ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(180, 0, 0)
 end)
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "Aimbot: OFF"
-AimbotToggle.Size = UDim2.new(0.8, 0, 0, 30)
-AimbotToggle.Position = UDim2.new(0.1, 0, 0.6, 0)
-AimbotToggle.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+AimbotToggle.Text = "AIMBOT (HEAD): OFF"
+AimbotToggle.Size = UDim2.new(0.9, 0, 0, 35)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
+AimbotToggle.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = Aimbot.Enabled and "Aimbot: ON" or "Aimbot: OFF"
-    AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    AimbotToggle.Text = "AIMBOT (HEAD): " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(180, 0, 0)
 end)
 
--- Toggle Menu Key (Insert)
+-- Toggle Menu
 Mouse.KeyDown:Connect(function(key)
     if key == "insert" then
         Menu.Open = not Menu.Open
@@ -175,4 +206,4 @@ Mouse.KeyDown:Connect(function(key)
     end
 end)
 
-print("Script loaded. Press INSERT to toggle menu.")
+print("Script v2 loaded. Targets head, enemies only, faster response. INSERT toggles menu.")
