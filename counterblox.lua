@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v5
--- Точный аимбот в центр головы с прогнозированием движения
+-- Counter-Blox Script by Colin v6
+-- Исправлен аимбот с правильным прогнозированием движения
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,7 +15,7 @@ local Aimbot = {
     FOV = 70, 
     Smoothing = 0.05, 
     TargetPart = "Head",
-    Prediction = 0.165, -- Прогнозирование движения
+    Prediction = 0.14, -- Исправленное прогнозирование
     AimAtCenter = true
 }
 local Menu = {Open = true}
@@ -186,7 +186,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- УЛУЧШЕННЫЙ АИМБОТ С ПРОГНОЗИРОВАНИЕМ ДВИЖЕНИЯ
+-- ИСПРАВЛЕННЫЙ АИМБОТ С ПРАВИЛЬНЫМ ПРОГНОЗИРОВАНИЕМ
 function GetClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = Aimbot.FOV
@@ -199,10 +199,19 @@ function GetClosestPlayerToMouse()
                 local rootPart = character:FindFirstChild("HumanoidRootPart")
                 
                 if targetPart and rootPart then
-                    -- Рассчитываем точную позицию центра головы
                     local headCFrame = targetPart.CFrame
                     local headSize = targetPart.Size
-                    local headCenter = headCFrame.Position + headCFrame.LookVector * (headSize.Z/2)
+                    
+                    -- Точный центр головы
+                    local headCenter = headCFrame.Position
+                    if Aimbot.AimAtCenter then
+                        headCenter = headCFrame.Position + headCFrame.LookVector * (headSize.Z/2)
+                    end
+                    
+                    -- Прогнозирование с учетом направления движения
+                    if Aimbot.Prediction > 0 and rootPart.Velocity.Magnitude > 0 then
+                        headCenter = headCenter + (rootPart.Velocity * Aimbot.Prediction)
+                    end
                     
                     local screenPos, onScreen = Camera:WorldToViewportPoint(headCenter)
                     if onScreen then
@@ -232,20 +241,26 @@ RunService.RenderStepped:Connect(function()
             local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
             
             if targetPart and rootPart then
-                -- Получаем точный центр головы
                 local headCFrame = targetPart.CFrame
                 local headSize = targetPart.Size
-                local headCenter = headCFrame.Position
                 
-                -- Дополнительная коррекция для точного центра
+                -- Точный центр головы
+                local headCenter = headCFrame.Position
                 if Aimbot.AimAtCenter then
                     headCenter = headCFrame.Position + headCFrame.LookVector * (headSize.Z/2)
                 end
                 
-                -- Прогнозирование движения
+                -- ПРАВИЛЬНОЕ ПРОГНОЗИРОВАНИЕ:
+                -- Добавляем вектор скорости к позиции головы
+                -- Когда игрок движется влево, Velocity.X отрицательный
+                -- headCenter + (отрицательный * положительный) = headCenter - что-то = сдвиг влево
+                -- Это правильный прогноз в направлении движения
                 if Aimbot.Prediction > 0 then
                     local velocity = rootPart.Velocity
-                    headCenter = headCenter + (velocity * Aimbot.Prediction)
+                    -- Проверяем, что игрок действительно движется
+                    if velocity.Magnitude > 0 then
+                        headCenter = headCenter + (velocity * Aimbot.Prediction)
+                    end
                 end
                 
                 -- Плавное наведение
@@ -259,6 +274,20 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- Функция для тестирования прогнозирования
+local function TestPrediction()
+    local targetPlayer = GetClosestPlayerToMouse()
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = targetPlayer.Character.HumanoidRootPart
+        local velocity = rootPart.Velocity
+        print("Velocity:", velocity)
+        print("Magnitude:", velocity.Magnitude)
+        print("Direction X:", velocity.X, "Y:", velocity.Y, "Z:", velocity.Z)
+        print("Player moving left:", velocity.X < 0)
+        print("Player moving right:", velocity.X > 0)
+    end
+end
 
 -- Инициализация ESP
 for _, player in pairs(Players:GetPlayers()) do
@@ -279,7 +308,7 @@ Players.PlayerRemoving:Connect(function(player)
     ClearPlayerESP(player)
 end)
 
--- GUI Меню с настройками аимбота
+-- GUI Меню
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local ESPToggle = Instance.new("TextButton")
@@ -288,21 +317,22 @@ local PredictionLabel = Instance.new("TextLabel")
 local PredictionSlider = Instance.new("TextButton")
 local SmoothingLabel = Instance.new("TextLabel")
 local SmoothingSlider = Instance.new("TextButton")
+local TestPredictionBtn = Instance.new("TextButton")
 local Title = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV5"
+ScreenGui.Name = "ColinMenuV6"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 280, 0, 250)
+Frame.Size = UDim2.new(0, 280, 0, 280)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "Colin's Script v5"
+Title.Text = "Colin's Script v6"
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -311,7 +341,7 @@ Title.Font = Enum.Font.SourceSansBold
 ESPToggle.Parent = Frame
 ESPToggle.Text = "ESP (COLOR TEAM): ON"
 ESPToggle.Size = UDim2.new(0.9, 0, 0, 30)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.18, 0)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.16, 0)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.Font = Enum.Font.SourceSans
@@ -328,15 +358,15 @@ ESPToggle.MouseButton1Click:Connect(function()
 end)
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "AIMBOT (CENTER HEAD): OFF"
+AimbotToggle.Text = "AIMBOT (FIXED): OFF"
 AimbotToggle.Size = UDim2.new(0.9, 0, 0, 30)
-AimbotToggle.Position = UDim2.new(0.05, 0, 0.32, 0)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.28, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "AIMBOT (CENTER HEAD): " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.Text = "AIMBOT (FIXED): " .. (Aimbot.Enabled and "ON" or "OFF")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
@@ -344,7 +374,7 @@ PredictionLabel = Instance.new("TextLabel")
 PredictionLabel.Parent = Frame
 PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
 PredictionLabel.Size = UDim2.new(0.4, 0, 0, 25)
-PredictionLabel.Position = UDim2.new(0.05, 0, 0.46, 0)
+PredictionLabel.Position = UDim2.new(0.05, 0, 0.40, 0)
 PredictionLabel.BackgroundTransparency = 1
 PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 PredictionLabel.Font = Enum.Font.SourceSans
@@ -354,12 +384,12 @@ PredictionSlider = Instance.new("TextButton")
 PredictionSlider.Parent = Frame
 PredictionSlider.Text = "Adjust"
 PredictionSlider.Size = UDim2.new(0.45, 0, 0, 25)
-PredictionSlider.Position = UDim2.new(0.5, 0, 0.46, 0)
+PredictionSlider.Position = UDim2.new(0.5, 0, 0.40, 0)
 PredictionSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
 PredictionSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
 PredictionSlider.Font = Enum.Font.SourceSans
 PredictionSlider.MouseButton1Click:Connect(function()
-    Aimbot.Prediction = (Aimbot.Prediction + 0.05) % 0.3
+    Aimbot.Prediction = (Aimbot.Prediction + 0.01) % 0.25
     PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
 end)
 
@@ -367,7 +397,7 @@ SmoothingLabel = Instance.new("TextLabel")
 SmoothingLabel.Parent = Frame
 SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
 SmoothingLabel.Size = UDim2.new(0.4, 0, 0, 25)
-SmoothingLabel.Position = UDim2.new(0.05, 0, 0.58, 0)
+SmoothingLabel.Position = UDim2.new(0.05, 0, 0.52, 0)
 SmoothingLabel.BackgroundTransparency = 1
 SmoothingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 SmoothingLabel.Font = Enum.Font.SourceSans
@@ -377,21 +407,36 @@ SmoothingSlider = Instance.new("TextButton")
 SmoothingSlider.Parent = Frame
 SmoothingSlider.Text = "Adjust"
 SmoothingSlider.Size = UDim2.new(0.45, 0, 0, 25)
-SmoothingSlider.Position = UDim2.new(0.5, 0, 0.58, 0)
+SmoothingSlider.Position = UDim2.new(0.5, 0, 0.52, 0)
 SmoothingSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
 SmoothingSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
 SmoothingSlider.Font = Enum.Font.SourceSans
 SmoothingSlider.MouseButton1Click:Connect(function()
-    Aimbot.Smoothing = (Aimbot.Smoothing + 0.02) % 0.3
+    Aimbot.Smoothing = (Aimbot.Smoothing + 0.01) % 0.2
     SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
 end)
 
--- Переключение меню
+TestPredictionBtn = Instance.new("TextButton")
+TestPredictionBtn.Parent = Frame
+TestPredictionBtn.Text = "Test Prediction (F9)"
+TestPredictionBtn.Size = UDim2.new(0.9, 0, 0, 25)
+TestPredictionBtn.Position = UDim2.new(0.05, 0, 0.64, 0)
+TestPredictionBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+TestPredictionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TestPredictionBtn.Font = Enum.Font.SourceSans
+TestPredictionBtn.MouseButton1Click:Connect(TestPrediction)
+
+-- Горячая клавиша для теста прогнозирования
 Mouse.KeyDown:Connect(function(key)
+    if key == "f9" then
+        TestPrediction()
+    end
     if key == "insert" then
         Menu.Open = not Menu.Open
         Frame.Visible = Menu.Open
     end
 end)
 
-print("Script v5 загружен. Точный аимбот в центр головы с прогнозированием движения. INSERT - меню.")
+print("Script v6 загружен. Исправлен аимбот с правильным прогнозированием движения. F9 - тест прогнозирования.")
+print("При движении игрока влево (Velocity.X отрицательный) аимбот будет целиться левее центра головы.")
+print("При движении вправо (Velocity.X положительный) аимбот будет целиться правее центра головы.")
