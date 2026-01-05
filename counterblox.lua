@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v4
--- Цветное ESP по командам
+-- Counter-Blox Script by Colin v5
+-- Точный аимбот в центр головы с прогнозированием движения
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,14 +10,21 @@ local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
 
 local ESP = {Enabled = true}
-local Aimbot = {Enabled = false, FOV = 70, Smoothing = 0.08, TargetPart = "Head"}
+local Aimbot = {
+    Enabled = false, 
+    FOV = 70, 
+    Smoothing = 0.05, 
+    TargetPart = "Head",
+    Prediction = 0.165, -- Прогнозирование движения
+    AimAtCenter = true
+}
 local Menu = {Open = true}
 
--- Цвета для команд (можно настроить)
+-- Цвета для команд
 local TeamColors = {
-    Terrorists = Color3.fromRGB(255, 100, 100),     -- Красный для террористов
-    ["Counter-Terrorists"] = Color3.fromRGB(100, 100, 255),  -- Синий для CT
-    Default = Color3.fromRGB(255, 255, 255)         -- Белый по умолчанию
+    Terrorists = Color3.fromRGB(255, 100, 100),
+    ["Counter-Terrorists"] = Color3.fromRGB(100, 100, 255),
+    Default = Color3.fromRGB(255, 255, 255)
 }
 
 -- Таблицы для хранения ESP
@@ -43,7 +50,6 @@ function GetTeamColor(player)
         if TeamColors[teamName] then
             return TeamColors[teamName]
         end
-        -- Если команда есть, но цвета нет в таблице, используем цвет команды из игры
         if player.Team.TeamColor then
             return player.Team.TeamColor.Color
         end
@@ -51,7 +57,7 @@ function GetTeamColor(player)
     return TeamColors.Default
 end
 
--- Очистка ESP для игрока
+-- Очистка ESP
 function ClearPlayerESP(player)
     if drawings[player] then
         for _, drawing in pairs(drawings[player]) do
@@ -64,7 +70,7 @@ function ClearPlayerESP(player)
     end
 end
 
--- Создание ESP для игрока
+-- Создание ESP
 function CreatePlayerESP(player)
     if not IsEnemy(player) then return end
     
@@ -77,7 +83,6 @@ function CreatePlayerESP(player)
         Team = Drawing.new("Text")
     }
     
-    -- Настройка стиля
     local d = drawings[player]
     d.Box.Thickness = 2
     d.Box.Filled = false
@@ -92,20 +97,18 @@ function CreatePlayerESP(player)
     d.Team.Outline = true
 end
 
--- Основной цикл обновления ESP (каждую секунду)
+-- Обновление ESP
 spawn(function()
     while true do
         wait(1)
         
         if ESP.Enabled then
-            -- Добавляем ESP для новых игроков
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and IsEnemy(player) and not drawings[player] then
                     CreatePlayerESP(player)
                 end
             end
             
-            -- Удаляем ESP для вышедших игроков
             for player in pairs(drawings) do
                 if not player:IsDescendantOf(Players) then
                     ClearPlayerESP(player)
@@ -115,7 +118,6 @@ spawn(function()
     end
 end)
 
--- Обновление позиций ESP каждый кадр
 RunService.RenderStepped:Connect(function()
     for player, drawing in pairs(drawings) do
         local box = drawing.Box
@@ -129,7 +131,6 @@ RunService.RenderStepped:Connect(function()
             local character = player.Character
             local humanoid = character:FindFirstChild("Humanoid")
             
-            -- Проверяем, изменился ли персонаж (респавн)
             if playerCharacters[player] ~= character then
                 playerCharacters[player] = character
             end
@@ -140,28 +141,23 @@ RunService.RenderStepped:Connect(function()
                 if rootPart then
                     local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
                     if onScreen then
-                        -- Получаем цвет команды
                         local teamColor = GetTeamColor(player)
                         local teamName = player.Team and player.Team.Name or "No Team"
                         
-                        -- Размер бокса
                         local scale = 1000 / position.Z
                         local size = Vector2.new(scale * 2, scale * 3)
                         local pos = Vector2.new(position.X - size.X / 2, position.Y - size.Y / 2)
                         
-                        -- Бокс (цвет команды)
                         box.Size = size
                         box.Position = pos
                         box.Color = teamColor
                         box.Visible = true
                         
-                        -- Имя (белым)
                         name.Text = player.Name
                         name.Position = Vector2.new(position.X, pos.Y - 18)
                         name.Color = Color3.fromRGB(255, 255, 255)
                         name.Visible = true
                         
-                        -- Здоровье (градиентный цвет)
                         local hp = math.floor(humanoid.Health)
                         health.Text = "HP: " .. hp
                         health.Position = Vector2.new(position.X, pos.Y + size.Y + 2)
@@ -170,7 +166,6 @@ RunService.RenderStepped:Connect(function()
                                        or Color3.fromRGB(255, 0, 0)
                         health.Visible = true
                         
-                        -- Название команды (цвет команды)
                         teamText.Text = "[" .. teamName .. "]"
                         teamText.Position = Vector2.new(position.X, pos.Y - 35)
                         teamText.Color = teamColor
@@ -191,7 +186,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Улучшенный Aimbot
+-- УЛУЧШЕННЫЙ АИМБОТ С ПРОГНОЗИРОВАНИЕМ ДВИЖЕНИЯ
 function GetClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = Aimbot.FOV
@@ -201,8 +196,15 @@ function GetClosestPlayerToMouse()
             local character = player.Character
             if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
                 local targetPart = character:FindFirstChild(Aimbot.TargetPart)
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if targetPart and rootPart then
+                    -- Рассчитываем точную позицию центра головы
+                    local headCFrame = targetPart.CFrame
+                    local headSize = targetPart.Size
+                    local headCenter = headCFrame.Position + headCFrame.LookVector * (headSize.Z/2)
+                    
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(headCenter)
                     if onScreen then
                         local mousePos = Vector2.new(Mouse.X, Mouse.Y)
                         local targetPos = Vector2.new(screenPos.X, screenPos.Y)
@@ -221,30 +223,51 @@ function GetClosestPlayerToMouse()
     return closestPlayer
 end
 
--- Aimbot цикл
+-- Основной цикл аимбота
 RunService.RenderStepped:Connect(function()
     if Aimbot.Enabled then
         local targetPlayer = GetClosestPlayerToMouse()
         if targetPlayer and targetPlayer.Character then
             local targetPart = targetPlayer.Character:FindFirstChild(Aimbot.TargetPart)
-            if targetPart then
-                local targetPosition = targetPart.Position
+            local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if targetPart and rootPart then
+                -- Получаем точный центр головы
+                local headCFrame = targetPart.CFrame
+                local headSize = targetPart.Size
+                local headCenter = headCFrame.Position
+                
+                -- Дополнительная коррекция для точного центра
+                if Aimbot.AimAtCenter then
+                    headCenter = headCFrame.Position + headCFrame.LookVector * (headSize.Z/2)
+                end
+                
+                -- Прогнозирование движения
+                if Aimbot.Prediction > 0 then
+                    local velocity = rootPart.Velocity
+                    headCenter = headCenter + (velocity * Aimbot.Prediction)
+                end
+                
+                -- Плавное наведение
                 local cameraPosition = Camera.CFrame.Position
-                local newCFrame = CFrame.new(cameraPosition, targetPosition)
-                Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Aimbot.Smoothing)
+                local targetDirection = (headCenter - cameraPosition).Unit
+                local currentDirection = Camera.CFrame.LookVector
+                local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
+                
+                Camera.CFrame = CFrame.new(cameraPosition, cameraPosition + newDirection)
             end
         end
     end
 end)
 
--- Инициализация ESP для всех врагов
+-- Инициализация ESP
 for _, player in pairs(Players:GetPlayers()) do
     if IsEnemy(player) then
         CreatePlayerESP(player)
     end
 end
 
--- Обработка новых игроков
+-- Обработка игроков
 Players.PlayerAdded:Connect(function(player)
     wait(0.5)
     if IsEnemy(player) then
@@ -256,26 +279,30 @@ Players.PlayerRemoving:Connect(function(player)
     ClearPlayerESP(player)
 end)
 
--- GUI Меню
+-- GUI Меню с настройками аимбота
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local ESPToggle = Instance.new("TextButton")
 local AimbotToggle = Instance.new("TextButton")
+local PredictionLabel = Instance.new("TextLabel")
+local PredictionSlider = Instance.new("TextButton")
+local SmoothingLabel = Instance.new("TextLabel")
+local SmoothingSlider = Instance.new("TextButton")
 local Title = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV4"
+ScreenGui.Name = "ColinMenuV5"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 250, 0, 200)
+Frame.Size = UDim2.new(0, 280, 0, 250)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "Colin's Script v4"
+Title.Text = "Colin's Script v5"
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -283,8 +310,8 @@ Title.Font = Enum.Font.SourceSansBold
 
 ESPToggle.Parent = Frame
 ESPToggle.Text = "ESP (COLOR TEAM): ON"
-ESPToggle.Size = UDim2.new(0.9, 0, 0, 35)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+ESPToggle.Size = UDim2.new(0.9, 0, 0, 30)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.18, 0)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.Font = Enum.Font.SourceSans
@@ -301,16 +328,62 @@ ESPToggle.MouseButton1Click:Connect(function()
 end)
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "AIMBOT (HEAD): OFF"
-AimbotToggle.Size = UDim2.new(0.9, 0, 0, 35)
-AimbotToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
+AimbotToggle.Text = "AIMBOT (CENTER HEAD): OFF"
+AimbotToggle.Size = UDim2.new(0.9, 0, 0, 30)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.32, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "AIMBOT (HEAD): " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.Text = "AIMBOT (CENTER HEAD): " .. (Aimbot.Enabled and "ON" or "OFF")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+end)
+
+PredictionLabel = Instance.new("TextLabel")
+PredictionLabel.Parent = Frame
+PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
+PredictionLabel.Size = UDim2.new(0.4, 0, 0, 25)
+PredictionLabel.Position = UDim2.new(0.05, 0, 0.46, 0)
+PredictionLabel.BackgroundTransparency = 1
+PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PredictionLabel.Font = Enum.Font.SourceSans
+PredictionLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+PredictionSlider = Instance.new("TextButton")
+PredictionSlider.Parent = Frame
+PredictionSlider.Text = "Adjust"
+PredictionSlider.Size = UDim2.new(0.45, 0, 0, 25)
+PredictionSlider.Position = UDim2.new(0.5, 0, 0.46, 0)
+PredictionSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+PredictionSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+PredictionSlider.Font = Enum.Font.SourceSans
+PredictionSlider.MouseButton1Click:Connect(function()
+    Aimbot.Prediction = (Aimbot.Prediction + 0.05) % 0.3
+    PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
+end)
+
+SmoothingLabel = Instance.new("TextLabel")
+SmoothingLabel.Parent = Frame
+SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
+SmoothingLabel.Size = UDim2.new(0.4, 0, 0, 25)
+SmoothingLabel.Position = UDim2.new(0.05, 0, 0.58, 0)
+SmoothingLabel.BackgroundTransparency = 1
+SmoothingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothingLabel.Font = Enum.Font.SourceSans
+SmoothingLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+SmoothingSlider = Instance.new("TextButton")
+SmoothingSlider.Parent = Frame
+SmoothingSlider.Text = "Adjust"
+SmoothingSlider.Size = UDim2.new(0.45, 0, 0, 25)
+SmoothingSlider.Position = UDim2.new(0.5, 0, 0.58, 0)
+SmoothingSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+SmoothingSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothingSlider.Font = Enum.Font.SourceSans
+SmoothingSlider.MouseButton1Click:Connect(function()
+    Aimbot.Smoothing = (Aimbot.Smoothing + 0.02) % 0.3
+    SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
 end)
 
 -- Переключение меню
@@ -321,4 +394,4 @@ Mouse.KeyDown:Connect(function(key)
     end
 end)
 
-print("Script v4 загружен. ESP цветное по командам (T=Красный, CT=Синий). INSERT - меню.")
+print("Script v5 загружен. Точный аимбот в центр головы с прогнозированием движения. INSERT - меню.")
