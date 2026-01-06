@@ -1,10 +1,11 @@
 -- Counter-Blox Script by Colin v10 - SKELETON ESP & AIMBOT
--- Skeleton ESP + улучшенный аимбот с меню
+-- Skeleton ESP + улучшенный аимбот с меню и системой биндов
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Teams = game:GetService("Teams")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
@@ -17,7 +18,7 @@ local ESP = {
     HeadDot = true,
     Health = true,
     Team = true,
-    BoneColor = Color3.fromRGB(255, 255, 255) -- Белый цвет костей
+    BoneColor = Color3.fromRGB(255, 255, 255)
 }
 
 local Aimbot = {
@@ -31,6 +32,28 @@ local Aimbot = {
 
 local Menu = {Open = true}
 
+-- СИСТЕМА БИНДОВ
+local Binds = {
+    -- Формат: ["ключ"] = {тип = "toggle/trigger", функция = function(), название = "имя"}
+    ["f1"] = {type = "toggle", func = function() ESP.Enabled = not ESP.Enabled end, name = "Toggle ESP"},
+    ["f2"] = {type = "toggle", func = function() Aimbot.Enabled = not Aimbot.Enabled end, name = "Toggle Aimbot"},
+    ["f3"] = {type = "toggle", func = function() ESP.Skeleton = not ESP.Skeleton end, name = "Toggle Skeleton"},
+    ["f4"] = {type = "toggle", func = function() ESP.Box = not ESP.Box end, name = "Toggle Box"},
+    ["leftcontrol+f1"] = {type = "trigger", func = function() print("CTRL+F1 pressed") end, name = "Custom Action 1"},
+    ["leftalt+f1"] = {type = "trigger", func = function() print("ALT+F1 pressed") end, name = "Custom Action 2"},
+    ["insert"] = {type = "toggle", func = function() Menu.Open = not Menu.Open end, name = "Toggle Menu"}
+}
+
+-- Проверка активных модификаторов
+local Modifiers = {
+    LeftControl = false,
+    LeftAlt = false,
+    LeftShift = false,
+    RightControl = false,
+    RightAlt = false,
+    RightShift = false
+}
+
 -- ТАБЛИЦЫ
 local drawings = {}
 local playerData = {}
@@ -38,27 +61,18 @@ local espUpdateConnection = nil
 
 -- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
 local BONE_CONNECTIONS = {
-    -- Торс
     {"Head", "UpperTorso"},
     {"UpperTorso", "LowerTorso"},
     {"LowerTorso", "HumanoidRootPart"},
-    
-    -- Правая рука
     {"UpperTorso", "RightUpperArm"},
     {"RightUpperArm", "RightLowerArm"},
     {"RightLowerArm", "RightHand"},
-    
-    -- Левая рука
     {"UpperTorso", "LeftUpperArm"},
     {"LeftUpperArm", "LeftLowerArm"},
     {"LeftLowerArm", "LeftHand"},
-    
-    -- Правая нога
     {"LowerTorso", "RightUpperLeg"},
     {"RightUpperLeg", "RightLowerLeg"},
     {"RightLowerLeg", "RightFoot"},
-    
-    -- Левая нога
     {"LowerTorso", "LeftUpperLeg"},
     {"LeftUpperLeg", "LeftLowerLeg"},
     {"LeftLowerLeg", "LeftFoot"}
@@ -157,7 +171,7 @@ function ClearPlayerESP(player)
     end
 end
 
--- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ESP КАЖДУЮ СЕКУНДУ
+-- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ESP
 local function StartESPUpdateLoop()
     if espUpdateConnection then
         espUpdateConnection:Disconnect()
@@ -368,6 +382,58 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- СИСТЕМА БИНДОВ: ОБРАБОТКА КЛАВИШ
+local function GetBindKey(input)
+    local key = input.KeyCode.Name:lower()
+    
+    -- Проверяем модификаторы
+    local modifiers = ""
+    if Modifiers.LeftControl then modifiers = modifiers .. "leftcontrol+" end
+    if Modifiers.LeftAlt then modifiers = modifiers .. "leftalt+" end
+    if Modifiers.LeftShift then modifiers = modifiers .. "leftshift+" end
+    if Modifiers.RightControl then modifiers = modifiers .. "rightcontrol+" end
+    if Modifiers.RightAlt then modifiers = modifiers .. "rightalt+" end
+    if Modifiers.RightShift then modifiers = modifiers .. "rightshift+" end
+    
+    return modifiers .. key
+end
+
+-- Обработка нажатия клавиш
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    -- Обновляем модификаторы
+    if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = true end
+    if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = true end
+    if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = true end
+    if input.KeyCode == Enum.KeyCode.RightControl then Modifiers.RightControl = true end
+    if input.KeyCode == Enum.KeyCode.RightAlt then Modifiers.RightAlt = true end
+    if input.KeyCode == Enum.KeyCode.RightShift then Modifiers.RightShift = true end
+    
+    -- Проверяем бинд
+    local bindKey = GetBindKey(input)
+    local bind = Binds[bindKey]
+    
+    if bind then
+        if bind.type == "toggle" then
+            bind.func()
+        elseif bind.type == "trigger" then
+            bind.func()
+        end
+    end
+end)
+
+-- Обработка отпускания клавиш
+UserInputService.InputEnded:Connect(function(input)
+    -- Сбрасываем модификаторы
+    if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = false end
+    if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = false end
+    if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = false end
+    if input.KeyCode == Enum.KeyCode.RightControl then Modifiers.RightControl = false end
+    if input.KeyCode == Enum.KeyCode.RightAlt then Modifiers.RightAlt = false end
+    if input.KeyCode == Enum.KeyCode.RightShift then Modifiers.RightShift = false end
+end)
+
 -- ИНИЦИАЛИЗАЦИЯ ESP ДЛЯ ВСЕХ ИГРОКОВ
 for _, player in pairs(Players:GetPlayers()) do
     if IsEnemy(player) then
@@ -408,12 +474,17 @@ local PredictionLabel = Instance.new("TextLabel")
 local PredictionSlider = Instance.new("TextButton")
 local AutoPredictionToggle = Instance.new("TextButton")
 
+-- ЭЛЕМЕНТЫ ДЛЯ БИНДОВ
+local BindTitle = Instance.new("TextLabel")
+local BindInstructions = Instance.new("TextLabel")
+local BindList = Instance.new("TextLabel")
+
 ScreenGui.Parent = game.CoreGui
 ScreenGui.Name = "ColinMenuV10"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 320, 0, 450)
+Frame.Size = UDim2.new(0, 350, 0, 500)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 Frame.Active = true
@@ -430,22 +501,22 @@ local ESPTitle = Instance.new("TextLabel")
 ESPTitle.Parent = Frame
 ESPTitle.Text = "ESP SETTINGS"
 ESPTitle.Size = UDim2.new(0.9, 0, 0, 25)
-ESPTitle.Position = UDim2.new(0.05, 0, 0.12, 0)
+ESPTitle.Position = UDim2.new(0.05, 0, 0.11, 0)
 ESPTitle.BackgroundTransparency = 1
 ESPTitle.TextColor3 = Color3.fromRGB(0, 200, 255)
 ESPTitle.Font = Enum.Font.SourceSansBold
 ESPTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 ESPToggle.Parent = Frame
-ESPToggle.Text = "ESP: ON"
+ESPToggle.Text = "ESP: ON (F1)"
 ESPToggle.Size = UDim2.new(0.9, 0, 0, 28)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.18, 0)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.16, 0)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.Font = Enum.Font.SourceSans
 ESPToggle.MouseButton1Click:Connect(function()
     ESP.Enabled = not ESP.Enabled
-    ESPToggle.Text = "ESP: " .. (ESP.Enabled and "ON" or "OFF")
+    ESPToggle.Text = "ESP: " .. (ESP.Enabled and "ON (F1)" or "OFF (F1)")
     ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
     
     if not ESP.Enabled then
@@ -458,35 +529,35 @@ ESPToggle.MouseButton1Click:Connect(function()
 end)
 
 SkeletonToggle.Parent = Frame
-SkeletonToggle.Text = "Skeleton ESP: ON"
+SkeletonToggle.Text = "Skeleton ESP: ON (F3)"
 SkeletonToggle.Size = UDim2.new(0.9, 0, 0, 24)
-SkeletonToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+SkeletonToggle.Position = UDim2.new(0.05, 0, 0.22, 0)
 SkeletonToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 SkeletonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 SkeletonToggle.Font = Enum.Font.SourceSans
 SkeletonToggle.MouseButton1Click:Connect(function()
     ESP.Skeleton = not ESP.Skeleton
-    SkeletonToggle.Text = "Skeleton ESP: " .. (ESP.Skeleton and "ON" or "OFF")
+    SkeletonToggle.Text = "Skeleton ESP: " .. (ESP.Skeleton and "ON (F3)" or "OFF (F3)")
     SkeletonToggle.BackgroundColor3 = ESP.Skeleton and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
 end)
 
 BoxToggle.Parent = Frame
-BoxToggle.Text = "Box ESP: ON"
+BoxToggle.Text = "Box ESP: ON (F4)"
 BoxToggle.Size = UDim2.new(0.9, 0, 0, 24)
-BoxToggle.Position = UDim2.new(0.05, 0, 0.31, 0)
+BoxToggle.Position = UDim2.new(0.05, 0, 0.27, 0)
 BoxToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 BoxToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 BoxToggle.Font = Enum.Font.SourceSans
 BoxToggle.MouseButton1Click:Connect(function()
     ESP.Box = not ESP.Box
-    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON" or "OFF")
+    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON (F4)" or "OFF (F4)")
     BoxToggle.BackgroundColor3 = ESP.Box and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
 end)
 
 HeadToggle.Parent = Frame
 HeadToggle.Text = "Head Dot: ON"
 HeadToggle.Size = UDim2.new(0.9, 0, 0, 24)
-HeadToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
+HeadToggle.Position = UDim2.new(0.05, 0, 0.32, 0)
 HeadToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 HeadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HeadToggle.Font = Enum.Font.SourceSans
@@ -499,7 +570,7 @@ end)
 HealthToggle.Parent = Frame
 HealthToggle.Text = "Health Text: ON"
 HealthToggle.Size = UDim2.new(0.9, 0, 0, 24)
-HealthToggle.Position = UDim2.new(0.05, 0, 0.43, 0)
+HealthToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
 HealthToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 HealthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HealthToggle.Font = Enum.Font.SourceSans
@@ -512,7 +583,7 @@ end)
 TeamToggle.Parent = Frame
 TeamToggle.Text = "Team Text: ON"
 TeamToggle.Size = UDim2.new(0.9, 0, 0, 24)
-TeamToggle.Position = UDim2.new(0.05, 0, 0.49, 0)
+TeamToggle.Position = UDim2.new(0.05, 0, 0.42, 0)
 TeamToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 TeamToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeamToggle.Font = Enum.Font.SourceSans
@@ -526,22 +597,22 @@ local AimbotTitle = Instance.new("TextLabel")
 AimbotTitle.Parent = Frame
 AimbotTitle.Text = "AIMBOT SETTINGS"
 AimbotTitle.Size = UDim2.new(0.9, 0, 0, 25)
-AimbotTitle.Position = UDim2.new(0.05, 0, 0.57, 0)
+AimbotTitle.Position = UDim2.new(0.05, 0, 0.49, 0)
 AimbotTitle.BackgroundTransparency = 1
 AimbotTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
 AimbotTitle.Font = Enum.Font.SourceSansBold
 AimbotTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "AIMBOT: OFF"
+AimbotToggle.Text = "AIMBOT: OFF (F2)"
 AimbotToggle.Size = UDim2.new(0.9, 0, 0, 28)
-AimbotToggle.Position = UDim2.new(0.05, 0, 0.63, 0)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.54, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "AIMBOT: " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.Text = "AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
@@ -549,7 +620,7 @@ SmoothingLabel = Instance.new("TextLabel")
 SmoothingLabel.Parent = Frame
 SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
 SmoothingLabel.Size = UDim2.new(0.4, 0, 0, 24)
-SmoothingLabel.Position = UDim2.new(0.05, 0, 0.70, 0)
+SmoothingLabel.Position = UDim2.new(0.05, 0, 0.60, 0)
 SmoothingLabel.BackgroundTransparency = 1
 SmoothingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 SmoothingLabel.Font = Enum.Font.SourceSans
@@ -559,7 +630,7 @@ SmoothingSlider = Instance.new("TextButton")
 SmoothingSlider.Parent = Frame
 SmoothingSlider.Text = "Adjust"
 SmoothingSlider.Size = UDim2.new(0.45, 0, 0, 24)
-SmoothingSlider.Position = UDim2.new(0.5, 0, 0.70, 0)
+SmoothingSlider.Position = UDim2.new(0.5, 0, 0.60, 0)
 SmoothingSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
 SmoothingSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
 SmoothingSlider.Font = Enum.Font.SourceSans
@@ -572,7 +643,7 @@ PredictionLabel = Instance.new("TextLabel")
 PredictionLabel.Parent = Frame
 PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
 PredictionLabel.Size = UDim2.new(0.4, 0, 0, 24)
-PredictionLabel.Position = UDim2.new(0.05, 0, 0.77, 0)
+PredictionLabel.Position = UDim2.new(0.05, 0, 0.66, 0)
 PredictionLabel.BackgroundTransparency = 1
 PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 PredictionLabel.Font = Enum.Font.SourceSans
@@ -582,7 +653,7 @@ PredictionSlider = Instance.new("TextButton")
 PredictionSlider.Parent = Frame
 PredictionSlider.Text = "Adjust"
 PredictionSlider.Size = UDim2.new(0.45, 0, 0, 24)
-PredictionSlider.Position = UDim2.new(0.5, 0, 0.77, 0)
+PredictionSlider.Position = UDim2.new(0.5, 0, 0.66, 0)
 PredictionSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
 PredictionSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
 PredictionSlider.Font = Enum.Font.SourceSans
@@ -595,7 +666,7 @@ AutoPredictionToggle = Instance.new("TextButton")
 AutoPredictionToggle.Parent = Frame
 AutoPredictionToggle.Text = "Auto Prediction: ON"
 AutoPredictionToggle.Size = UDim2.new(0.9, 0, 0, 24)
-AutoPredictionToggle.Position = UDim2.new(0.05, 0, 0.84, 0)
+AutoPredictionToggle.Position = UDim2.new(0.05, 0, 0.72, 0)
 AutoPredictionToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 AutoPredictionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoPredictionToggle.Font = Enum.Font.SourceSans
@@ -605,10 +676,46 @@ AutoPredictionToggle.MouseButton1Click:Connect(function()
     AutoPredictionToggle.BackgroundColor3 = Aimbot.AutoPrediction and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
 end)
 
--- ПЕРЕКЛЮЧЕНИЕ МЕНЮ
-Mouse.KeyDown:Connect(function(key)
-    if key == "insert" then
-        Menu.Open = not Menu.Open
-        Frame.Visible = Menu.Open
-    end
-end)
+-- РАЗДЕЛ БИНДОВ
+BindTitle = Instance.new("TextLabel")
+BindTitle.Parent = Frame
+BindTitle.Text = "KEY BINDS (Active)"
+BindTitle.Size = UDim2.new(0.9, 0, 0, 25)
+BindTitle.Position = UDim2.new(0.05, 0, 0.78, 0)
+BindTitle.BackgroundTransparency = 1
+BindTitle.TextColor3 = Color3.fromRGB(255, 200, 0)
+BindTitle.Font = Enum.Font.SourceSansBold
+BindTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+BindInstructions = Instance.new("TextLabel")
+BindInstructions.Parent = Frame
+BindInstructions.Text = "F1: ESP | F2: Aimbot | F3: Skeleton"
+BindInstructions.Size = UDim2.new(0.9, 0, 0, 18)
+BindInstructions.Position = UDim2.new(0.05, 0, 0.83, 0)
+BindInstructions.BackgroundTransparency = 1
+BindInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
+BindInstructions.Font = Enum.Font.SourceSans
+BindInstructions.TextXAlignment = Enum.TextXAlignment.Left
+
+BindList = Instance.new("TextLabel")
+BindList.Parent = Frame
+BindList.Text = "F4: Box | INSERT: Menu"
+BindList.Size = UDim2.new(0.9, 0, 0, 18)
+BindList.Position = UDim2.new(0.05, 0, 0.87, 0)
+BindList.BackgroundTransparency = 1
+BindList.TextColor3 = Color3.fromRGB(200, 200, 200)
+BindList.Font = Enum.Font.SourceSans
+BindList.TextXAlignment = Enum.TextXAlignment.Left
+
+local ModifierInfo = Instance.new("TextLabel")
+ModifierInfo.Parent = Frame
+ModifierInfo.Text = "CTRL+F1 / ALT+F1: Custom actions"
+ModifierInfo.Size = UDim2.new(0.9, 0, 0, 18)
+ModifierInfo.Position = UDim2.new(0.05, 0, 0.91, 0)
+ModifierInfo.BackgroundTransparency = 1
+ModifierInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
+ModifierInfo.Font = Enum.Font.SourceSans
+ModifierInfo.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Переключение меню также через бинд (INSERT уже настроен)
+Frame.Visible = Menu.Open
