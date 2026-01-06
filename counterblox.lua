@@ -1,75 +1,86 @@
--- Semirax Cheat Hub [Roblox/Lua] + UI Menu
+-- Semirax Cheat Hub v2 [Smooth Aimbot + Fixed Visuals]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
-local Flags = {
+local Config = {
     Aimbot = true,
+    Smoothness = 0.15, -- 0 to 1 (Lower is smoother)
     ESP = true,
     Skeletons = true,
     TeamCheck = true
 }
 
--- Create UI
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 200, 0, 250)
-MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Text = "SEMIRAX MENU"
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-
-local function CreateToggle(name, flag, pos)
-    local Button = Instance.new("TextButton", MainFrame)
-    Button.Size = UDim2.new(0.9, 0, 0, 40)
-    Button.Position = UDim2.new(0.05, 0, 0, pos)
-    Button.Text = name .. ": ON"
-    Button.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    
-    Button.MouseButton1Click:Connect(function()
-        Flags[flag] = not Flags[flag]
-        Button.Text = name .. (Flags[flag] and ": ON" or ": OFF")
-        Button.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    end)
+local function CreateDrawing(type, properties)
+    local d = Drawing.new(type)
+    for i, v in pairs(properties) do d[i] = v end
+    return d
 end
 
-CreateToggle("Aimbot", "Aimbot", 40)
-CreateToggle("ESP", "ESP", 90)
-CreateToggle("Skeletons", "Skeletons", 140)
-CreateToggle("Team Check", "TeamCheck", 190)
+local function GetSkeletonJoints(character)
+    local joints = {}
+    local R = character:FindFirstChild("HumanoidRootPart")
+    if not R then return joints end
+    -- Standard R15/R6 mapping simplified
+    local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm", "LeftUpperLeg", "RightUpperLeg"}
+    for _, name in pairs(parts) do
+        if character:FindFirstChild(name) then joints[name] = character[name] end
+    end
+    return joints
+end
 
--- Logic Loops (Modified to check Flags)
+local cache = {}
+
 RunService.RenderStepped:Connect(function()
-    if not Flags.Aimbot then return end
-    local ClosestTarget = nil
-    local MaxDist = math.huge
-    
-    for _, Player in pairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer and (not Flags.TeamCheck or Player.Team ~= LocalPlayer.Team) then
-            if Player.Character and Player.Character:FindFirstChild("Head") then
-                local Head = Player.Character.Head
-                local Vector, OnScreen = Camera:WorldToViewportPoint(Head.Position)
-                if OnScreen then
-                    local Mag = (Vector2.new(Vector.X, Vector.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                    if Mag < MaxDist then
-                        MaxDist = Mag
-                        ClosestTarget = Head
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and (not Config.TeamCheck or player.Team ~= LocalPlayer.Team) then
+            local char = player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local hrp = char.HumanoidRootPart
+                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                
+                if not cache[player] then
+                    cache[player] = {
+                        Box = CreateDrawing("Square", {Thickness = 1, Filled = false, Transparency = 1}),
+                        Text = CreateDrawing("Text", {Size = 13, Center = true, Outline = true}),
+                        Lines = {}
+                    }
+                end
+                
+                local data = cache[player]
+                if onScreen and Config.ESP then
+                    -- Proportional Box
+                    local sizeX = 2000 / pos.Z
+                    local sizeY = 3000 / pos.Z
+                    data.Box.Visible = true
+                    data.Box.Size = Vector2.new(sizeX, sizeY)
+                    data.Box.Position = Vector2.new(pos.X - sizeX / 2, pos.Y - sizeY / 2)
+                    data.Box.Color = player.TeamColor.Color
+                    
+                    data.Text.Visible = true
+                    data.Text.Position = Vector2.new(pos.X, pos.Y + (sizeY / 2) + 5)
+                    data.Text.Text = player.Name .. " [" .. math.floor(char.Humanoid.Health) .. "HP]"
+                    data.Text.Color = Color3.new(1, 1, 1)
+                else
+                    data.Box.Visible = false
+                    data.Text.Visible = false
+                end
+                
+                -- Smooth Aimbot Logic
+                if Config.Aimbot and onScreen then
+                    local mousePos = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+                    local targetPos = Vector2.new(pos.X, pos.Y)
+                    if (targetPos - mousePos).Magnitude < 200 then
+                        local currentCF = Camera.CFrame
+                        local targetCF = CFrame.new(currentCF.Position, char.Head.Position)
+                        Camera.CFrame = currentCF:Lerp(targetCF, Config.Smoothness)
                     end
                 end
+            elseif cache[player] then
+                cache[player].Box.Visible = false
+                cache[player].Text.Visible = false
             end
         end
     end
-    if ClosestTarget then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, ClosestTarget.Position)
-    end
 end)
-
--- Note: ESP rendering would link to Flags.ESP and Flags.Skeletons here.
