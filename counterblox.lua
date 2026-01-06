@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8.6 - MILLISECOND UPDATE + WHITE THEME]
+-- SEMIRAX CHEAT [V8.7 - WHITE ESP & AIMBOT RESTORED]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Полная очистка перед запуском
+-- Полная очистка памяти
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -17,29 +17,29 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 60, --
+    Radius = 60, -- Значение из
     MenuVisible = true
 }
 
 local ESP_Data = {}
 
--- Круг FOV
+-- Визуальный круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
-FOVCircle.Color = Color3.new(1, 1, 1) -- Белый
+FOVCircle.Color = Color3.new(1, 1, 1) -- Белый для стиля
 FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
--- ИНТЕРФЕЙС
+-- МЕНЮ
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_White_V8.6"
+ScreenGui.Name = "Semirax_Final_V8.7"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 190, 0, 400) 
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
-Main.BorderColor3 = Color3.fromRGB(255, 255, 255) -- Белая рамка меню
+Main.BorderColor3 = Color3.fromRGB(255, 255, 255)
 Main.Visible = Flags.MenuVisible
 
 local Title = Instance.new("TextLabel", Main)
@@ -47,7 +47,6 @@ Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Title.Text = "SEMIRAX CHEAT"
 Title.TextColor3 = Color3.new(1, 1, 1)
-Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
 local function CreateToggle(name, flag, y)
@@ -65,12 +64,13 @@ local function CreateToggle(name, flag, y)
     end)
 end
 
-CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("WHITE BOX ESP", "ESP", 80)
+CreateToggle("RAGE AIM", "Aimbot", 40) --
+CreateToggle("WHITE BOX ESP", "ESP", 80) --
 CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
+-- Управление FOV
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
 FOVLabel.Position = UDim2.new(0, 0, 0, 245)
@@ -90,16 +90,8 @@ local function CreateAdj(text, x, delta)
         FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
     end)
 end
-CreateAdj("-", 0.05, -10) --
-CreateAdj("+", 0.55, 10)  --
-
-local CloseBtn = Instance.new("TextButton", Main)
-CloseBtn.Size = UDim2.new(0.9, 0, 0, 35)
-CloseBtn.Position = UDim2.new(0.05, 0, 0, 355)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
-CloseBtn.Text = "CLOSE (Insert to open)"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.MouseButton1Click:Connect(function() Flags.MenuVisible = false Main.Visible = false end)
+CreateAdj("-", 0.05, -10)
+CreateAdj("+", 0.55, 10)
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.Insert then
@@ -108,101 +100,96 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- СОЗДАНИЕ ОБЪЕКТОВ ESP
-local function CreateESP(p)
-    local data = {
+-- Инициализация ESP
+local function SetupESP(p)
+    ESP_Data[p] = {
         Box = Drawing.new("Square"),
         BarBack = Drawing.new("Square"),
         Bar = Drawing.new("Square"),
         Tag = Drawing.new("Text")
     }
-    data.Box.Thickness = 1
-    data.Box.Color = Color3.new(1, 1, 1) -- Белый прямоугольник
-    data.Box.Visible = false
-    
-    data.BarBack.Color = Color3.new(0, 0, 0)
-    data.BarBack.Filled = true
-    
-    data.Bar.Color = Color3.new(0, 1, 0)
-    data.Bar.Filled = true
-    
-    data.Tag.Size = 13
-    data.Tag.Center = true
-    data.Tag.Outline = true
-    data.Tag.Color = Color3.new(1, 1, 1) -- Белый текст
-    
-    ESP_Data[p] = data
+    local d = ESP_Data[p]
+    d.Box.Thickness = 1
+    d.Box.Color = Color3.new(1, 1, 1) -- Белый
+    d.BarBack.Filled = true
+    d.BarBack.Color = Color3.new(0, 0, 0)
+    d.Bar.Filled = true
+    d.Tag.Size = 13
+    d.Tag.Center = true
+    d.Tag.Outline = true
+    d.Tag.Color = Color3.new(1, 1, 1) -- Белый
 end
 
-for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p) end end
-Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerAdded:Connect(SetupESP)
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then SetupESP(p) end end
 
--- ОБНОВЛЕНИЕ КАЖДУЮ МИЛЛИСЕКУНДУ (RenderStepped)
+-- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ (Милисекунды)
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
-    local BestTarget = nil
-    local MinDist = Flags.Radius
+    local TargetHead = nil
+    local ClosestDist = Flags.Radius
 
     for _, p in pairs(Players:GetPlayers()) do
-        local data = ESP_Data[p]
-        local char = p.Character
-        local hum = char and char:FindFirstChild("Humanoid")
-        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local d = ESP_Data[p]
+        if p ~= LocalPlayer and d then
+            local char = p.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if char and hum and root and hum.Health > 0 then
+                local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
 
-        if char and hum and root and hum.Health > 0 then
-            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-            local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
+                if onScreen and Flags.ESP and isEnemy then
+                    -- Расчет пропорций
+                    local headScreen = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
+                    local legScreen = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                    local h = math.abs(headScreen.Y - legScreen.Y)
+                    local w = h / 2
+                    
+                    -- Отрисовка Box
+                    d.Box.Size = Vector2.new(w, h)
+                    d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
+                    d.Box.Visible = true
 
-            if onScreen and Flags.ESP and isEnemy then
-                -- Динамический расчет размеров
-                local head = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
-                local leg = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                local h = math.abs(head.Y - leg.Y)
-                local w = h / 2
-                
-                -- Белый прямоугольник
-                data.Box.Size = Vector2.new(w, h)
-                data.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
-                data.Box.Visible = true
+                    -- HP Bar (Снаружи слева)
+                    local bX = pos.X - w/2 - 6
+                    d.BarBack.Size = Vector2.new(4, h)
+                    d.BarBack.Position = Vector2.new(bX - 1, pos.Y - h/2)
+                    d.BarBack.Visible = true
 
-                -- Вертикальный HP Bar (Снаружи слева)
-                local barX = pos.X - w/2 - 6
-                data.BarBack.Size = Vector2.new(4, h)
-                data.BarBack.Position = Vector2.new(barX - 1, pos.Y - h/2)
-                data.BarBack.Visible = true
+                    local hPct = hum.Health / hum.MaxHealth
+                    d.Bar.Size = Vector2.new(2, h * hPct)
+                    d.Bar.Position = Vector2.new(bX, (pos.Y + h/2) - (h * hPct))
+                    d.Bar.Color = Color3.fromHSV(hPct * 0.3, 1, 1)
+                    d.Bar.Visible = true
 
-                local hpHeight = (hum.Health / hum.MaxHealth) * h
-                data.Bar.Size = Vector2.new(2, hpHeight)
-                data.Bar.Position = Vector2.new(barX, (pos.Y + h/2) - hpHeight)
-                data.Bar.Color = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
-                data.Bar.Visible = true
+                    -- Текст и предмет
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    d.Tag.Text = string.format("%s\n[%s]", p.Name, tool and tool.Name or "Hands")
+                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 30)
+                    d.Tag.Visible = true
+                else
+                    d.Box.Visible = false; d.Bar.Visible = false; d.BarBack.Visible = false; d.Tag.Visible = false
+                end
 
-                -- Белый текст (Имя и Предмет)
-                local tool = char:FindFirstChildOfClass("Tool")
-                data.Tag.Text = string.format("%s\n[%s]", p.Name, tool and tool.Name or "Hands")
-                data.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 30)
-                data.Tag.Visible = true
+                -- AIMBOT LOGIC
+                if Flags.Aimbot and isEnemy and onScreen then
+                    local mag = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+                    if mag < ClosestDist then
+                        ClosestDist = mag
+                        TargetHead = char.Head
+                    end
+                end
             else
-                data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
+                d.Box.Visible = false; d.Bar.Visible = false; d.BarBack.Visible = false; d.Tag.Visible = false
             end
-
-            -- Wallhack
-            if Flags.Wallhack and isEnemy then
-                local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
-                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                hl.FillColor = Color3.new(1, 1, 1) -- Белый валхак
-            elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
-
-            -- Aimbot
-            if Flags.Aimbot and isEnemy and onScreen then
-                local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
-                if d < MinDist then MinDist = d BestTarget = char.Head end
-            end
-        elseif data then
-            data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
         end
     end
-    if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
+    -- Наводка
+    if TargetHead then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, TargetHead.Position)
+    end
 end)
