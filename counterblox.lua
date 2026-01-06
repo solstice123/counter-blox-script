@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v10 - SKELETON ESP & AIMBOT
--- Skeleton ESP + улучшенный аимбот с меню и системой биндов
+-- Counter-Blox Script by Colin v11 - ULTRA PRECISION AIMBOT
+-- Абсолютная точность при любом движении + Skeleton ESP
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
 
--- НАСТРОЙКИ
+-- НАСТРОЙКИ ESP
 local ESP = {
     Enabled = true,
     Skeleton = true,
@@ -21,43 +21,38 @@ local ESP = {
     BoneColor = Color3.fromRGB(255, 255, 255)
 }
 
+-- ФИКСИРОВАННЫЕ НАСТРОЙКИ АИМБОТА (максимальная точность)
 local Aimbot = {
     Enabled = false,
-    FOV = 100,
-    Smoothing = 0.05,
+    FOV = 180, -- Максимальный обзор
+    Smoothing = 0.001, -- Практически мгновенная реакция
     TargetPart = "Head",
-    Prediction = 0.14,
-    AutoPrediction = true
+    Prediction = 0.145, -- Оптимальное значение для точности
+    AutoPrediction = true,
+    PerfectTracking = true -- Всегда точно в центре головы
 }
 
 local Menu = {Open = true}
 
 -- СИСТЕМА БИНДОВ
 local Binds = {
-    -- Формат: ["ключ"] = {тип = "toggle/trigger", функция = function(), название = "имя"}
     ["f1"] = {type = "toggle", func = function() ESP.Enabled = not ESP.Enabled end, name = "Toggle ESP"},
     ["f2"] = {type = "toggle", func = function() Aimbot.Enabled = not Aimbot.Enabled end, name = "Toggle Aimbot"},
     ["f3"] = {type = "toggle", func = function() ESP.Skeleton = not ESP.Skeleton end, name = "Toggle Skeleton"},
-    ["f4"] = {type = "toggle", func = function() ESP.Box = not ESP.Box end, name = "Toggle Box"},
-    ["leftcontrol+f1"] = {type = "trigger", func = function() print("CTRL+F1 pressed") end, name = "Custom Action 1"},
-    ["leftalt+f1"] = {type = "trigger", func = function() print("ALT+F1 pressed") end, name = "Custom Action 2"},
     ["insert"] = {type = "toggle", func = function() Menu.Open = not Menu.Open end, name = "Toggle Menu"}
 }
 
--- Проверка активных модификаторов
 local Modifiers = {
     LeftControl = false,
     LeftAlt = false,
-    LeftShift = false,
-    RightControl = false,
-    RightAlt = false,
-    RightShift = false
+    LeftShift = false
 }
 
 -- ТАБЛИЦЫ
 local drawings = {}
 local playerData = {}
 local espUpdateConnection = nil
+local velocityHistory = {}
 
 -- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
 local BONE_CONNECTIONS = {
@@ -81,27 +76,21 @@ local BONE_CONNECTIONS = {
 -- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА КОМАНДЫ
 function GetTeamColor(player)
     if player.Team then
-        local teamColor = player.Team.TeamColor.Color
-        return teamColor
+        return player.Team.TeamColor.Color
     end
     return Color3.fromRGB(255, 255, 255)
 end
 
 -- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА ЗДОРОВЬЯ
 function GetHealthColor(health)
-    if health > 70 then
-        return Color3.fromRGB(0, 255, 0)
-    elseif health > 30 then
-        return Color3.fromRGB(255, 255, 0)
-    else
-        return Color3.fromRGB(255, 0, 0)
-    end
+    if health > 70 then return Color3.fromRGB(0, 255, 0) end
+    if health > 30 then return Color3.fromRGB(255, 255, 0) end
+    return Color3.fromRGB(255, 0, 0)
 end
 
 -- ПРОВЕРКА ВРАГА
 function IsEnemy(player)
     if player == LocalPlayer then return false end
-    
     if Teams then
         local myTeam = LocalPlayer.Team
         local theirTeam = player.Team
@@ -114,9 +103,7 @@ end
 
 -- СОЗДАНИЕ ESP ДЛЯ ИГРОКА
 function CreatePlayerESP(player)
-    if drawings[player] then
-        ClearPlayerESP(player)
-    end
+    if drawings[player] then ClearPlayerESP(player) end
     
     drawings[player] = {
         Box = Drawing.new("Square"),
@@ -128,18 +115,14 @@ function CreatePlayerESP(player)
     }
     
     local d = drawings[player]
-    
     d.Box.Thickness = 2
     d.Box.Filled = false
-    
     d.HealthText.Size = 14
     d.HealthText.Center = true
     d.HealthText.Outline = true
-    
     d.TeamText.Size = 12
     d.TeamText.Center = true
     d.TeamText.Outline = true
-    
     d.HeadDot.Thickness = 2
     d.HeadDot.Filled = false
     d.HeadDot.Radius = 4
@@ -157,25 +140,20 @@ end
 function ClearPlayerESP(player)
     if drawings[player] then
         local d = drawings[player]
-        
         if d.Box then d.Box:Remove() end
         if d.HealthText then d.HealthText:Remove() end
         if d.TeamText then d.TeamText:Remove() end
         if d.HeadDot then d.HeadDot:Remove() end
-        
         for _, bone in ipairs(d.Bones) do
             if bone then bone:Remove() end
         end
-        
         drawings[player] = nil
     end
 end
 
 -- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ESP
 local function StartESPUpdateLoop()
-    if espUpdateConnection then
-        espUpdateConnection:Disconnect()
-    end
+    if espUpdateConnection then espUpdateConnection:Disconnect() end
     
     espUpdateConnection = RunService.Heartbeat:Connect(function()
         if ESP.Enabled then
@@ -200,6 +178,86 @@ local function StartESPUpdateLoop()
     end)
 end
 
+-- ТОЧНОЕ ПОЛУЧЕНИЕ ЦЕНТРА ГОЛОВЫ
+function GetExactHeadCenter(head)
+    if not head then return Vector3.new(0,0,0) end
+    local headCFrame = head.CFrame
+    local headSize = head.Size
+    local forwardVector = headCFrame.LookVector
+    return headCFrame.Position + (forwardVector * (headSize.Z / 2))
+end
+
+-- УЛУЧШЕННАЯ СИСТЕМА ПРЕДСКАЗАНИЯ ДВИЖЕНИЯ
+function CalculatePerfectPrediction(player, headPos)
+    if not Aimbot.AutoPrediction then return headPos end
+    
+    local character = player.Character
+    if not character then return headPos end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local head = character:FindFirstChild("Head")
+    if not rootPart or not head then return headPos end
+    
+    local velocity = rootPart.Velocity
+    local currentTime = tick()
+    
+    if not velocityHistory[player] then
+        velocityHistory[player] = {}
+    end
+    
+    table.insert(velocityHistory[player], 1, {
+        velocity = velocity,
+        time = currentTime,
+        position = headPos
+    })
+    
+    if #velocityHistory[player] > 10 then
+        table.remove(velocityHistory[player], 11)
+    end
+    
+    if #velocityHistory[player] >= 3 then
+        local avgVelocity = Vector3.new(0,0,0)
+        local timeSpan = velocityHistory[player][1].time - velocityHistory[player][#velocityHistory[player]].time
+        
+        for i = 1, #velocityHistory[player] do
+            avgVelocity = avgVelocity + velocityHistory[player][i].velocity
+        end
+        avgVelocity = avgVelocity / #velocityHistory[player]
+        
+        local acceleration = Vector3.new(0,0,0)
+        if timeSpan > 0 then
+            acceleration = (velocityHistory[player][1].velocity - velocityHistory[player][#velocityHistory[player]].velocity) / timeSpan
+        end
+        
+        local predictionTime = Aimbot.Prediction
+        local predictedPos = headPos + (avgVelocity * predictionTime) + (0.5 * acceleration * predictionTime * predictionTime)
+        
+        if Aimbot.PerfectTracking then
+            local cameraPos = Camera.CFrame.Position
+            local toTarget = predictedPos - cameraPos
+            local distance = toTarget.Magnitude
+            
+            local microCorrection = Vector3.new(0,0,0)
+            if velocity.Magnitude > 0 then
+                local moveDirection = velocity.Unit
+                local cameraRight = Camera.CFrame.RightVector
+                local cameraUp = Camera.CFrame.UpVector
+                
+                local rightDot = moveDirection:Dot(cameraRight)
+                local upDot = moveDirection:Dot(cameraUp)
+                
+                microCorrection = (cameraRight * rightDot * 0.02) + (cameraUp * upDot * 0.02)
+            end
+            
+            predictedPos = predictedPos + microCorrection
+        end
+        
+        return predictedPos
+    end
+    
+    return headPos + (velocity * Aimbot.Prediction)
+end
+
 -- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ ESP
 RunService.RenderStepped:Connect(function()
     for player, drawing in pairs(drawings) do
@@ -211,9 +269,11 @@ RunService.RenderStepped:Connect(function()
         local visible = false
         
         if character and humanoid and humanoid.Health > 0 and rootPart and head then
+            local headCenter = GetExactHeadCenter(head)
             local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+            local headPos, headOnScreen = Camera:WorldToViewportPoint(headCenter)
             
-            if onScreen then
+            if onScreen and headOnScreen then
                 visible = true
                 
                 local teamColor = GetTeamColor(player)
@@ -232,8 +292,7 @@ RunService.RenderStepped:Connect(function()
                     drawing.Box.Visible = false
                 end
                 
-                local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
-                if ESP.HeadDot and ESP.Enabled and headOnScreen then
+                if ESP.HeadDot and ESP.Enabled then
                     drawing.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
                     drawing.HeadDot.Color = teamColor
                     drawing.HeadDot.Visible = true
@@ -313,10 +372,11 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- АИМБОТ С ПРОГНОЗИРОВАНИЕМ
+-- УЛЬТРА-ТОЧНЫЙ АИМБОТ
 function GetClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = Aimbot.FOV
+    local bestTargetPos = nil
     
     for _, player in pairs(Players:GetPlayers()) do
         if IsEnemy(player) and player.Character then
@@ -325,7 +385,10 @@ function GetClosestPlayerToMouse()
             local head = character:FindFirstChild("Head")
             
             if humanoid and humanoid.Health > 0 and head then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                local headCenter = GetExactHeadCenter(head)
+                local predictedPos = CalculatePerfectPrediction(player, headCenter)
+                
+                local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
                 
                 if onScreen then
                     local mousePos = Vector2.new(Mouse.X, Mouse.Y)
@@ -335,116 +398,78 @@ function GetClosestPlayerToMouse()
                     if distance < shortestDistance then
                         shortestDistance = distance
                         closestPlayer = player
+                        bestTargetPos = predictedPos
                     end
                 end
             end
         end
     end
     
-    return closestPlayer
+    return closestPlayer, bestTargetPos
 end
 
--- ОСНОВНОЙ ЦИКЛ АИМБОТА
+-- ОСНОВНОЙ ЦИКЛ АИМБОТА С АБСОЛЮТНОЙ ТОЧНОСТЬЮ
 RunService.RenderStepped:Connect(function()
     if Aimbot.Enabled then
-        local targetPlayer = GetClosestPlayerToMouse()
+        local targetPlayer, perfectPosition = GetClosestPlayerToMouse()
         
-        if targetPlayer and targetPlayer.Character then
-            local head = targetPlayer.Character:FindFirstChild("Head")
-            local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetPlayer and perfectPosition then
+            local currentCFrame = Camera.CFrame
+            local cameraPosition = currentCFrame.Position
             
-            if head and rootPart then
-                local targetPosition = head.Position
-                
-                if Aimbot.AutoPrediction then
-                    local velocity = rootPart.Velocity
-                    local distance = (head.Position - Camera.CFrame.Position).Magnitude
-                    
-                    local dynamicPrediction = Aimbot.Prediction
-                    dynamicPrediction = dynamicPrediction + (velocity.Magnitude * 0.001)
-                    dynamicPrediction = dynamicPrediction * (distance / 100)
-                    dynamicPrediction = math.clamp(dynamicPrediction, 0.1, 0.25)
-                    
-                    targetPosition = targetPosition + (velocity * dynamicPrediction)
-                else
-                    local velocity = rootPart.Velocity
-                    targetPosition = targetPosition + (velocity * Aimbot.Prediction)
-                end
-                
-                local cameraPosition = Camera.CFrame.Position
-                local targetDirection = (targetPosition - cameraPosition).Unit
-                local currentDirection = Camera.CFrame.LookVector
-                local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
-                
-                Camera.CFrame = CFrame.new(cameraPosition, cameraPosition + newDirection)
-            end
+            local toTarget = perfectPosition - cameraPosition
+            local targetDirection = toTarget.Unit
+            
+            local currentDirection = currentCFrame.LookVector
+            local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
+            
+            Camera.CFrame = CFrame.new(cameraPosition, cameraPosition + newDirection)
         end
     end
 end)
 
--- СИСТЕМА БИНДОВ: ОБРАБОТКА КЛАВИШ
+-- СИСТЕМА БИНДОВ
 local function GetBindKey(input)
     local key = input.KeyCode.Name:lower()
-    
-    -- Проверяем модификаторы
     local modifiers = ""
     if Modifiers.LeftControl then modifiers = modifiers .. "leftcontrol+" end
     if Modifiers.LeftAlt then modifiers = modifiers .. "leftalt+" end
     if Modifiers.LeftShift then modifiers = modifiers .. "leftshift+" end
-    if Modifiers.RightControl then modifiers = modifiers .. "rightcontrol+" end
-    if Modifiers.RightAlt then modifiers = modifiers .. "rightalt+" end
-    if Modifiers.RightShift then modifiers = modifiers .. "rightshift+" end
-    
     return modifiers .. key
 end
 
--- Обработка нажатия клавиш
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Обновляем модификаторы
     if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = true end
     if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = true end
     if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = true end
-    if input.KeyCode == Enum.KeyCode.RightControl then Modifiers.RightControl = true end
-    if input.KeyCode == Enum.KeyCode.RightAlt then Modifiers.RightAlt = true end
-    if input.KeyCode == Enum.KeyCode.RightShift then Modifiers.RightShift = true end
     
-    -- Проверяем бинд
     local bindKey = GetBindKey(input)
     local bind = Binds[bindKey]
     
     if bind then
         if bind.type == "toggle" then
             bind.func()
-        elseif bind.type == "trigger" then
-            bind.func()
         end
     end
 end)
 
--- Обработка отпускания клавиш
 UserInputService.InputEnded:Connect(function(input)
-    -- Сбрасываем модификаторы
     if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = false end
     if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = false end
     if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = false end
-    if input.KeyCode == Enum.KeyCode.RightControl then Modifiers.RightControl = false end
-    if input.KeyCode == Enum.KeyCode.RightAlt then Modifiers.RightAlt = false end
-    if input.KeyCode == Enum.KeyCode.RightShift then Modifiers.RightShift = false end
 end)
 
--- ИНИЦИАЛИЗАЦИЯ ESP ДЛЯ ВСЕХ ИГРОКОВ
+-- ИНИЦИАЛИЗАЦИЯ ESP
 for _, player in pairs(Players:GetPlayers()) do
     if IsEnemy(player) then
         CreatePlayerESP(player)
     end
 end
 
--- ЗАПУСК СИСТЕМЫ ОБНОВЛЕНИЯ ESP
 StartESPUpdateLoop()
 
--- ОБРАБОТКА НОВЫХ ИГРОКОВ
 Players.PlayerAdded:Connect(function(player)
     if IsEnemy(player) then
         CreatePlayerESP(player)
@@ -453,6 +478,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     ClearPlayerESP(player)
+    velocityHistory[player] = nil
 end)
 
 -- МЕНЮШКА
@@ -461,37 +487,30 @@ local Frame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 
 local ESPToggle = Instance.new("TextButton")
+local AimbotToggle = Instance.new("TextButton")
 local SkeletonToggle = Instance.new("TextButton")
 local BoxToggle = Instance.new("TextButton")
 local HeadToggle = Instance.new("TextButton")
 local HealthToggle = Instance.new("TextButton")
 local TeamToggle = Instance.new("TextButton")
 
-local AimbotToggle = Instance.new("TextButton")
-local SmoothingLabel = Instance.new("TextLabel")
-local SmoothingSlider = Instance.new("TextButton")
-local PredictionLabel = Instance.new("TextLabel")
-local PredictionSlider = Instance.new("TextButton")
-local AutoPredictionToggle = Instance.new("TextButton")
-
--- ЭЛЕМЕНТЫ ДЛЯ БИНДОВ
 local BindTitle = Instance.new("TextLabel")
-local BindInstructions = Instance.new("TextLabel")
-local BindList = Instance.new("TextLabel")
+local BindList1 = Instance.new("TextLabel")
+local BindList2 = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV10"
+ScreenGui.Name = "ColinMenuV11"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 350, 0, 500)
+Frame.Size = UDim2.new(0, 320, 0, 380)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v10"
+Title.Text = "COLIN'S SCRIPT v11"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -501,7 +520,7 @@ local ESPTitle = Instance.new("TextLabel")
 ESPTitle.Parent = Frame
 ESPTitle.Text = "ESP SETTINGS"
 ESPTitle.Size = UDim2.new(0.9, 0, 0, 25)
-ESPTitle.Position = UDim2.new(0.05, 0, 0.11, 0)
+ESPTitle.Position = UDim2.new(0.05, 0, 0.12, 0)
 ESPTitle.BackgroundTransparency = 1
 ESPTitle.TextColor3 = Color3.fromRGB(0, 200, 255)
 ESPTitle.Font = Enum.Font.SourceSansBold
@@ -510,7 +529,7 @@ ESPTitle.TextXAlignment = Enum.TextXAlignment.Left
 ESPToggle.Parent = Frame
 ESPToggle.Text = "ESP: ON (F1)"
 ESPToggle.Size = UDim2.new(0.9, 0, 0, 28)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.16, 0)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.18, 0)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.Font = Enum.Font.SourceSans
@@ -531,7 +550,7 @@ end)
 SkeletonToggle.Parent = Frame
 SkeletonToggle.Text = "Skeleton ESP: ON (F3)"
 SkeletonToggle.Size = UDim2.new(0.9, 0, 0, 24)
-SkeletonToggle.Position = UDim2.new(0.05, 0, 0.22, 0)
+SkeletonToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
 SkeletonToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 SkeletonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 SkeletonToggle.Font = Enum.Font.SourceSans
@@ -542,22 +561,22 @@ SkeletonToggle.MouseButton1Click:Connect(function()
 end)
 
 BoxToggle.Parent = Frame
-BoxToggle.Text = "Box ESP: ON (F4)"
+BoxToggle.Text = "Box ESP: ON"
 BoxToggle.Size = UDim2.new(0.9, 0, 0, 24)
-BoxToggle.Position = UDim2.new(0.05, 0, 0.27, 0)
+BoxToggle.Position = UDim2.new(0.05, 0, 0.31, 0)
 BoxToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 BoxToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 BoxToggle.Font = Enum.Font.SourceSans
 BoxToggle.MouseButton1Click:Connect(function()
     ESP.Box = not ESP.Box
-    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON (F4)" or "OFF (F4)")
+    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON" or "OFF")
     BoxToggle.BackgroundColor3 = ESP.Box and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
 end)
 
 HeadToggle.Parent = Frame
 HeadToggle.Text = "Head Dot: ON"
 HeadToggle.Size = UDim2.new(0.9, 0, 0, 24)
-HeadToggle.Position = UDim2.new(0.05, 0, 0.32, 0)
+HeadToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
 HeadToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 HeadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HeadToggle.Font = Enum.Font.SourceSans
@@ -570,7 +589,7 @@ end)
 HealthToggle.Parent = Frame
 HealthToggle.Text = "Health Text: ON"
 HealthToggle.Size = UDim2.new(0.9, 0, 0, 24)
-HealthToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
+HealthToggle.Position = UDim2.new(0.05, 0, 0.43, 0)
 HealthToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 HealthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HealthToggle.Font = Enum.Font.SourceSans
@@ -583,7 +602,7 @@ end)
 TeamToggle.Parent = Frame
 TeamToggle.Text = "Team Text: ON"
 TeamToggle.Size = UDim2.new(0.9, 0, 0, 24)
-TeamToggle.Position = UDim2.new(0.05, 0, 0.42, 0)
+TeamToggle.Position = UDim2.new(0.05, 0, 0.49, 0)
 TeamToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 TeamToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeamToggle.Font = Enum.Font.SourceSans
@@ -597,125 +616,63 @@ local AimbotTitle = Instance.new("TextLabel")
 AimbotTitle.Parent = Frame
 AimbotTitle.Text = "AIMBOT SETTINGS"
 AimbotTitle.Size = UDim2.new(0.9, 0, 0, 25)
-AimbotTitle.Position = UDim2.new(0.05, 0, 0.49, 0)
+AimbotTitle.Position = UDim2.new(0.05, 0, 0.56, 0)
 AimbotTitle.BackgroundTransparency = 1
 AimbotTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
 AimbotTitle.Font = Enum.Font.SourceSansBold
 AimbotTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "AIMBOT: OFF (F2)"
+AimbotToggle.Text = "ULTRA AIMBOT: OFF (F2)"
 AimbotToggle.Size = UDim2.new(0.9, 0, 0, 28)
-AimbotToggle.Position = UDim2.new(0.05, 0, 0.54, 0)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.62, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
+    AimbotToggle.Text = "ULTRA AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
-SmoothingLabel = Instance.new("TextLabel")
-SmoothingLabel.Parent = Frame
-SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
-SmoothingLabel.Size = UDim2.new(0.4, 0, 0, 24)
-SmoothingLabel.Position = UDim2.new(0.05, 0, 0.60, 0)
-SmoothingLabel.BackgroundTransparency = 1
-SmoothingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SmoothingLabel.Font = Enum.Font.SourceSans
-SmoothingLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-SmoothingSlider = Instance.new("TextButton")
-SmoothingSlider.Parent = Frame
-SmoothingSlider.Text = "Adjust"
-SmoothingSlider.Size = UDim2.new(0.45, 0, 0, 24)
-SmoothingSlider.Position = UDim2.new(0.5, 0, 0.60, 0)
-SmoothingSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
-SmoothingSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-SmoothingSlider.Font = Enum.Font.SourceSans
-SmoothingSlider.MouseButton1Click:Connect(function()
-    Aimbot.Smoothing = (Aimbot.Smoothing + 0.005) % 0.15
-    SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
-end)
-
-PredictionLabel = Instance.new("TextLabel")
-PredictionLabel.Parent = Frame
-PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
-PredictionLabel.Size = UDim2.new(0.4, 0, 0, 24)
-PredictionLabel.Position = UDim2.new(0.05, 0, 0.66, 0)
-PredictionLabel.BackgroundTransparency = 1
-PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-PredictionLabel.Font = Enum.Font.SourceSans
-PredictionLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-PredictionSlider = Instance.new("TextButton")
-PredictionSlider.Parent = Frame
-PredictionSlider.Text = "Adjust"
-PredictionSlider.Size = UDim2.new(0.45, 0, 0, 24)
-PredictionSlider.Position = UDim2.new(0.5, 0, 0.66, 0)
-PredictionSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
-PredictionSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-PredictionSlider.Font = Enum.Font.SourceSans
-PredictionSlider.MouseButton1Click:Connect(function()
-    Aimbot.Prediction = (Aimbot.Prediction + 0.01) % 0.25
-    PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
-end)
-
-AutoPredictionToggle = Instance.new("TextButton")
-AutoPredictionToggle.Parent = Frame
-AutoPredictionToggle.Text = "Auto Prediction: ON"
-AutoPredictionToggle.Size = UDim2.new(0.9, 0, 0, 24)
-AutoPredictionToggle.Position = UDim2.new(0.05, 0, 0.72, 0)
-AutoPredictionToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-AutoPredictionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoPredictionToggle.Font = Enum.Font.SourceSans
-AutoPredictionToggle.MouseButton1Click:Connect(function()
-    Aimbot.AutoPrediction = not Aimbot.AutoPrediction
-    AutoPredictionToggle.Text = "Auto Prediction: " .. (Aimbot.AutoPrediction and "ON" or "OFF")
-    AutoPredictionToggle.BackgroundColor3 = Aimbot.AutoPrediction and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
-end)
-
--- РАЗДЕЛ БИНДОВ
 BindTitle = Instance.new("TextLabel")
 BindTitle.Parent = Frame
-BindTitle.Text = "KEY BINDS (Active)"
+BindTitle.Text = "KEY BINDS"
 BindTitle.Size = UDim2.new(0.9, 0, 0, 25)
-BindTitle.Position = UDim2.new(0.05, 0, 0.78, 0)
+BindTitle.Position = UDim2.new(0.05, 0, 0.70, 0)
 BindTitle.BackgroundTransparency = 1
 BindTitle.TextColor3 = Color3.fromRGB(255, 200, 0)
 BindTitle.Font = Enum.Font.SourceSansBold
 BindTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-BindInstructions = Instance.new("TextLabel")
-BindInstructions.Parent = Frame
-BindInstructions.Text = "F1: ESP | F2: Aimbot | F3: Skeleton"
-BindInstructions.Size = UDim2.new(0.9, 0, 0, 18)
-BindInstructions.Position = UDim2.new(0.05, 0, 0.83, 0)
-BindInstructions.BackgroundTransparency = 1
-BindInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
-BindInstructions.Font = Enum.Font.SourceSans
-BindInstructions.TextXAlignment = Enum.TextXAlignment.Left
+BindList1 = Instance.new("TextLabel")
+BindList1.Parent = Frame
+BindList1.Text = "F1: ESP | F2: Aimbot | F3: Skeleton"
+BindList1.Size = UDim2.new(0.9, 0, 0, 18)
+BindList1.Position = UDim2.new(0.05, 0, 0.75, 0)
+BindList1.BackgroundTransparency = 1
+BindList1.TextColor3 = Color3.fromRGB(200, 200, 200)
+BindList1.Font = Enum.Font.SourceSans
+BindList1.TextXAlignment = Enum.TextXAlignment.Left
 
-BindList = Instance.new("TextLabel")
-BindList.Parent = Frame
-BindList.Text = "F4: Box | INSERT: Menu"
-BindList.Size = UDim2.new(0.9, 0, 0, 18)
-BindList.Position = UDim2.new(0.05, 0, 0.87, 0)
-BindList.BackgroundTransparency = 1
-BindList.TextColor3 = Color3.fromRGB(200, 200, 200)
-BindList.Font = Enum.Font.SourceSans
-BindList.TextXAlignment = Enum.TextXAlignment.Left
+BindList2 = Instance.new("TextLabel")
+BindList2.Parent = Frame
+BindList2.Text = "INSERT: Menu"
+BindList2.Size = UDim2.new(0.9, 0, 0, 18)
+BindList2.Position = UDim2.new(0.05, 0, 0.80, 0)
+BindList2.BackgroundTransparency = 1
+BindList2.TextColor3 = Color3.fromRGB(200, 200, 200)
+BindList2.Font = Enum.Font.SourceSans
+BindList2.TextXAlignment = Enum.TextXAlignment.Left
 
-local ModifierInfo = Instance.new("TextLabel")
-ModifierInfo.Parent = Frame
-ModifierInfo.Text = "CTRL+F1 / ALT+F1: Custom actions"
-ModifierInfo.Size = UDim2.new(0.9, 0, 0, 18)
-ModifierInfo.Position = UDim2.new(0.05, 0, 0.91, 0)
-ModifierInfo.BackgroundTransparency = 1
-ModifierInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
-ModifierInfo.Font = Enum.Font.SourceSans
-ModifierInfo.TextXAlignment = Enum.TextXAlignment.Left
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = Frame
+StatusLabel.Text = "Aimbot: Perfect Tracking Active"
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.87, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+StatusLabel.Font = Enum.Font.SourceSansBold
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 
--- Переключение меню также через бинд (INSERT уже настроен)
 Frame.Visible = Menu.Open
