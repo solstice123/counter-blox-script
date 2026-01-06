@@ -1,6 +1,5 @@
--- Counter-Blox Script by Colin v9 - ABSOLUTE MATHEMATICAL PERFECTION
--- Математически идеальный аимбот с нейронной сетью предсказаний
--- С МЕНЮШКОЙ ДЛЯ УПРАВЛЕНИЯ
+-- Counter-Blox Script by Colin v10 - SKELETON ESP & AIMBOT
+-- Skeleton ESP + улучшенный аимбот с меню
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,654 +8,621 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = Workspace.CurrentCamera
-local Stats = game:GetService("Stats")
 
--- АБСОЛЮТНЫЕ НАСТРОЙКИ ТОЧНОСТИ
-local ESP = {Enabled = true}
+-- НАСТРОЙКИ
+local ESP = {
+    Enabled = true,
+    Skeleton = true,
+    Box = true,
+    HeadDot = true,
+    Health = true,
+    Team = true,
+    BoneColor = Color3.fromRGB(255, 255, 255) -- Белый цвет костей
+}
+
 local Aimbot = {
     Enabled = false,
-    FOV = 180, -- Полный обзор
-    Smoothing = 0.001, -- Практически мгновенная реакция
+    FOV = 100,
+    Smoothing = 0.05,
     TargetPart = "Head",
-    Prediction = 0.1467, -- Математически рассчитанная константа
-    AimAtCenter = true,
-    
-    -- НОВЫЕ АБСОЛЮТНЫЕ ПАРАМЕТРЫ
-    QuantumLock = true, -- Квантовая блокировка на цель
-    NeuralPrediction = true, -- Нейронное предсказание
-    TimeDilation = 0.9999, -- Замедление времени для точности
-    PerfectInterpolation = true, -- Идеальная интерполяция
-    AntiJitter = true, -- Подавление джиттера
-    SubPixelPrecision = true, -- Субпиксельная точность
-    PredictiveMathematics = true, -- Предсказательная математика
+    Prediction = 0.14,
+    AutoPrediction = true
 }
 
 local Menu = {Open = true}
 
--- Математические константы для абсолютной точности
-local MATH_CONSTANTS = {
-    GOLDEN_RATIO = 1.6180339887,
-    PI = math.pi,
-    EULER = 2.7182818284,
-    LIGHT_SPEED = 299792458, -- м/с (для расчетов)
-    HUMAN_REACTION = 0.215, -- Средняя реакция человека
-}
-
--- Система квантовой блокировки
-local QuantumState = {
-    LockedPlayer = nil,
-    LockStrength = 0,
-    PhaseShift = 0,
-    QuantumEntanglement = {},
-    ProbabilityWave = {}
-}
-
--- Нейронная сеть предсказаний
-local NeuralNetwork = {
-    Weights = {
-        velocity = 0.783,
-        acceleration = 0.192,
-        jerk = 0.018,
-        pattern = 0.007
-    },
-    Memory = {},
-    TrainingData = {},
-    PredictionBuffer = {}
-}
-
--- Система субпиксельной точности
-local SubPixelSystem = {
-    LastRay = nil,
-    MicroCorrections = 0,
-    PrecisionStack = {},
-    ErrorCorrection = 0
-}
-
--- Таблицы для хранения ESP
+-- ТАБЛИЦЫ
 local drawings = {}
-local playerCharacters = {}
-local historicalData = {}
-local movementPatterns = {}
-local temporalData = {}
+local playerData = {}
 
--- ИНИЦИАЛИЗАЦИЯ АБСОЛЮТНОЙ СИСТЕМЫ
-print("╔══════════════════════════════════════════════════════════╗")
-print("║     COLIN'S QUANTUM PRECISION AIMBOT v9 - ACTIVATED     ║")
-print("║               MATHEMATICAL PERFECTION ENGINE            ║")
-print("╚══════════════════════════════════════════════════════════╝")
+-- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
+local BONE_CONNECTIONS = {
+    -- Торс
+    {"Head", "UpperTorso"},
+    {"UpperTorso", "LowerTorso"},
+    {"LowerTorso", "HumanoidRootPart"},
+    
+    -- Правая рука
+    {"UpperTorso", "RightUpperArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"RightLowerArm", "RightHand"},
+    
+    -- Левая рука
+    {"UpperTorso", "LeftUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"LeftLowerArm", "LeftHand"},
+    
+    -- Правая нога
+    {"LowerTorso", "RightUpperLeg"},
+    {"RightUpperLeg", "RightLowerLeg"},
+    {"RightLowerLeg", "RightFoot"},
+    
+    -- Левая нога
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"LeftLowerLeg", "LeftFoot"}
+}
 
--- Функция абсолютной точности: расчет идеального центра головы
-function CalculatePerfectHeadCenter(head)
-    if not head then return Vector3.new(0,0,0) end
-    
-    local headCFrame = head.CFrame
-    local headSize = head.Size
-    
-    -- Используем золотое сечение для идеального центра
-    local goldenOffset = headCFrame.LookVector * (headSize.Z / MATH_CONSTANTS.GOLDEN_RATIO)
-    local perfectCenter = headCFrame.Position + goldenOffset
-    
-    -- Микрокоррекция на основе ориентации
-    local upCorrection = headCFrame.UpVector * (headSize.Y * 0.15)
-    perfectCenter = perfectCenter - upCorrection
-    
-    return perfectCenter
+-- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА КОМАНДЫ
+function GetTeamColor(player)
+    if player.Team then
+        local teamColor = player.Team.TeamColor.Color
+        return teamColor
+    end
+    return Color3.fromRGB(255, 255, 255) -- Белый по умолчанию
 end
 
--- Квантовая блокировка: математически совершенная система
-function QuantumLockTarget(targetPlayer, targetPos)
-    if not Aimbot.QuantumLock then return targetPos end
-    
-    local currentTime = tick()
-    local phase = math.sin(currentTime * MATH_CONSTANTS.PI * 2) * 0.01
-    
-    -- Создаем квантовую запутанность с целью
-    if QuantumState.LockedPlayer ~= targetPlayer then
-        QuantumState.LockedPlayer = targetPlayer
-        QuantumState.LockStrength = 0
-        QuantumState.PhaseShift = 0
+-- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА ЗДОРОВЬЯ
+function GetHealthColor(health)
+    if health > 70 then
+        return Color3.fromRGB(0, 255, 0) -- Зеленый
+    elseif health > 30 then
+        return Color3.fromRGB(255, 255, 0) -- Желтый
+    else
+        return Color3.fromRGB(255, 0, 0) -- Красный
     end
-    
-    -- Увеличиваем силу блокировки
-    QuantumState.LockStrength = math.min(QuantumState.LockStrength + 0.1, 1.0)
-    
-    -- Применяем фазовый сдвиг для устранения задержек
-    QuantumState.PhaseShift = QuantumState.PhaseShift + (phase * QuantumState.LockStrength)
-    
-    -- Корректируем позицию с учетом квантовых эффектов
-    local head = targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head")
-    if head then
-        local headCFrame = head.CFrame
-        local lockedPos = targetPos + (headCFrame.RightVector * QuantumState.PhaseShift)
-        return lockedPos
-    end
-    
-    return targetPos
 end
 
--- Нейронное предсказание движения
-function NeuralPredictMovement(player, currentPos, velocity, acceleration)
-    if not Aimbot.NeuralPrediction then return currentPos end
+-- ПРОВЕРКА ВРАГА
+function IsEnemy(player)
+    if player == LocalPlayer then return false end
     
-    local character = player.Character
-    if not character then return currentPos end
+    if Teams then
+        local myTeam = LocalPlayer.Team
+        local theirTeam = player.Team
+        if myTeam and theirTeam then
+            return myTeam ~= theirTeam
+        end
+    end
+    return true -- Если нет команд, все враги
+end
+
+-- СОЗДАНИЕ ESP ДЛЯ ИГРОКА
+function CreatePlayerESP(player)
+    if drawings[player] then
+        ClearPlayerESP(player)
+    end
     
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return currentPos end
-    
-    -- Собираем данные о движении
-    local movementData = {
-        position = currentPos,
-        velocity = velocity or Vector3.new(0,0,0),
-        acceleration = acceleration or Vector3.new(0,0,0),
-        timestamp = tick(),
-        rotation = rootPart.CFrame - rootPart.Position
+    drawings[player] = {
+        Box = Drawing.new("Square"),
+        HealthText = Drawing.new("Text"),
+        TeamText = Drawing.new("Text"),
+        HeadDot = Drawing.new("Circle"),
+        Bones = {},
+        BoneCount = 0
     }
     
-    -- Сохраняем в историю
-    if not historicalData[player] then
-        historicalData[player] = {}
+    local d = drawings[player]
+    
+    -- Настройка бокса
+    d.Box.Thickness = 2
+    d.Box.Filled = false
+    
+    -- Настройка текста здоровья
+    d.HealthText.Size = 14
+    d.HealthText.Center = true
+    d.HealthText.Outline = true
+    
+    -- Настройка текста команды
+    d.TeamText.Size = 12
+    d.TeamText.Center = true
+    d.TeamText.Outline = true
+    
+    -- Настройка точки головы
+    d.HeadDot.Thickness = 2
+    d.HeadDot.Filled = false
+    d.HeadDot.Radius = 4
+    
+    -- Создание костей для скелета
+    for _, bonePair in ipairs(BONE_CONNECTIONS) do
+        local bone = Drawing.new("Line")
+        bone.Thickness = 1.5
+        bone.Color = ESP.BoneColor
+        table.insert(d.Bones, bone)
     end
-    
-    table.insert(historicalData[player], 1, movementData)
-    if #historicalData[player] > 60 then
-        table.remove(historicalData[player], 61)
-    end
-    
-    -- Анализируем паттерны движения
-    if #historicalData[player] >= 10 then
-        local pattern = AnalyzeMovementPattern(historicalData[player])
-        movementPatterns[player] = pattern
-    end
-    
-    -- Предсказываем будущую позицию с нейронными весами
-    local prediction = currentPos
-    
-    if velocity then
-        local neuralFactor = NeuralNetwork.Weights.velocity * Aimbot.Prediction
-        prediction = prediction + (velocity * neuralFactor)
-    end
-    
-    if acceleration and movementPatterns[player] then
-        local accelFactor = NeuralNetwork.Weights.acceleration * (Aimbot.Prediction ^ 2) * 0.5
-        prediction = prediction + (acceleration * accelFactor)
+    d.BoneCount = #d.Bones
+end
+
+-- ОЧИСТКА ESP
+function ClearPlayerESP(player)
+    if drawings[player] then
+        local d = drawings[player]
         
-        -- Учитываем паттерны движения
-        if movementPatterns[player].type == "strafe" then
-            local patternOffset = movementPatterns[player].direction * movementPatterns[player].frequency * 0.1
-            prediction = prediction + patternOffset
+        if d.Box then d.Box:Remove() end
+        if d.HealthText then d.HealthText:Remove() end
+        if d.TeamText then d.TeamText:Remove() end
+        if d.HeadDot then d.HeadDot:Remove() end
+        
+        for _, bone in ipairs(d.Bones) do
+            if bone then bone:Remove() end
         end
-    end
-    
-    return prediction
-end
-
--- Анализ паттернов движения
-function AnalyzeMovementPattern(history)
-    if #history < 5 then return {type = "unknown"} end
-    
-    local velocities = {}
-    local directions = {}
-    
-    for i = 2, #history do
-        local vel = (history[i-1].position - history[i].position).Unit
-        table.insert(velocities, vel)
-        table.insert(directions, {
-            x = math.sign(vel.X),
-            y = math.sign(vel.Y),
-            z = math.sign(vel.Z)
-        })
-    end
-    
-    -- Определяем тип движения
-    local strafeCount = 0
-    for i = 2, #directions do
-        if math.abs(directions[i].x - directions[i-1].x) > 0 then
-            strafeCount = strafeCount + 1
-        end
-    end
-    
-    local strafeRatio = strafeCount / (#directions - 1)
-    
-    if strafeRatio > 0.3 then
-        return {
-            type = "strafe",
-            direction = velocities[#velocities],
-            frequency = strafeRatio * 2,
-            amplitude = 1.0
-        }
-    else
-        return {
-            type = "linear",
-            direction = velocities[#velocities],
-            speed = velocities[#velocities].Magnitude
-        }
+        
+        drawings[player] = nil
     end
 end
 
--- Идеальная интерполяция с субпиксельной точностью
-function PerfectInterpolation(currentCFrame, targetPos, deltaTime)
-    if not Aimbot.PerfectInterpolation then
-        local direction = (targetPos - currentCFrame.Position).Unit
-        return CFrame.new(currentCFrame.Position, currentCFrame.Position + direction)
-    end
-    
-    local cameraPos = currentCFrame.Position
-    local toTarget = targetPos - cameraPos
-    local distance = toTarget.Magnitude
-    
-    -- Рассчитываем идеальный угол
-    local targetDirection = toTarget.Unit
-    
-    -- Применяем замедление времени для точности
-    local timeFactor = Aimbot.TimeDilation
-    local adjustedSmoothing = Aimbot.Smoothing * timeFactor
-    
-    -- Используем математически идеальную интерполяцию
-    local currentDirection = currentCFrame.LookVector
-    local dotProduct = currentDirection:Dot(targetDirection)
-    
-    -- Рассчитываем угол между направлениями
-    local angle = math.acos(math.clamp(dotProduct, -1, 1))
-    
-    -- Адаптивное сглаживание на основе угла и расстояния
-    local adaptiveSmoothing = adjustedSmoothing
-    
-    if angle > math.rad(5) then
-        adaptiveSmoothing = adaptiveSmoothing * 2
-    elseif angle < math.rad(0.5) then
-        adaptiveSmoothing = adaptiveSmoothing * 0.1
-    end
-    
-    if distance < 50 then
-        adaptiveSmoothing = adaptiveSmoothing * 0.5
-    end
-    
-    -- Субпиксельная коррекция
-    if Aimbot.SubPixelPrecision and angle < math.rad(1) then
-        local screenTarget, onScreen = Camera:WorldToViewportPoint(targetPos)
-        if onScreen then
-            local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-            local screenPos = Vector2.new(screenTarget.X, screenTarget.Y)
-            local pixelError = (screenPos - mousePos)
+-- ОБНОВЛЕНИЕ ESP
+RunService.RenderStepped:Connect(function()
+    for player, drawing in pairs(drawings) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        local head = character and character:FindFirstChild("Head")
+        
+        -- Проверяем, видим ли мы игрока
+        local visible = false
+        
+        if character and humanoid and humanoid.Health > 0 and rootPart and head then
+            local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
             
-            if pixelError.Magnitude < 10 then
-                adaptiveSmoothing = adaptiveSmoothing * 0.01
+            if onScreen then
+                visible = true
                 
-                -- Микрокоррекция для субпиксельной точности
-                local microAdjust = pixelError * 0.0001
-                targetDirection = (targetDirection + currentCFrame.RightVector * microAdjust.X + currentCFrame.UpVector * microAdjust.Y).Unit
+                -- Получаем цвет команды
+                local teamColor = GetTeamColor(player)
+                local teamName = player.Team and player.Team.Name or "No Team"
+                
+                -- РАСЧЕТ РАЗМЕРОВ БОКСА
+                local scale = 1000 / position.Z
+                local boxSize = Vector2.new(scale * 2.2, scale * 3.5)
+                local boxPos = Vector2.new(position.X - boxSize.X / 2, position.Y - boxSize.Y / 2)
+                
+                -- ОТОБРАЖЕНИЕ БОКСА
+                if ESP.Box and ESP.Enabled then
+                    drawing.Box.Size = boxSize
+                    drawing.Box.Position = boxPos
+                    drawing.Box.Color = teamColor
+                    drawing.Box.Visible = true
+                else
+                    drawing.Box.Visible = false
+                end
+                
+                -- ТОЧКА ГОЛОВЫ
+                local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
+                if ESP.HeadDot and ESP.Enabled and headOnScreen then
+                    drawing.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
+                    drawing.HeadDot.Color = teamColor
+                    drawing.HeadDot.Visible = true
+                else
+                    drawing.HeadDot.Visible = false
+                end
+                
+                -- ТЕКСТ ЗДОРОВЬЯ
+                if ESP.Health and ESP.Enabled then
+                    local health = math.floor(humanoid.Health)
+                    drawing.HealthText.Text = "HP: " .. health
+                    drawing.HealthText.Position = Vector2.new(position.X, boxPos.Y + boxSize.Y + 5)
+                    drawing.HealthText.Color = GetHealthColor(health)
+                    drawing.HealthText.Visible = true
+                else
+                    drawing.HealthText.Visible = false
+                end
+                
+                -- ТЕКСТ КОМАНДЫ
+                if ESP.Team and ESP.Enabled then
+                    drawing.TeamText.Text = "[" .. teamName .. "]"
+                    drawing.TeamText.Position = Vector2.new(position.X, boxPos.Y - 20)
+                    drawing.TeamText.Color = teamColor
+                    drawing.TeamText.Visible = true
+                else
+                    drawing.TeamText.Visible = false
+                end
+                
+                -- SKELETON ESP
+                if ESP.Skeleton and ESP.Enabled then
+                    for i, bonePair in ipairs(BONE_CONNECTIONS) do
+                        local part1 = character:FindFirstChild(bonePair[1])
+                        local part2 = character:FindFirstChild(bonePair[2])
+                        
+                        if part1 and part2 then
+                            local pos1, onScreen1 = Camera:WorldToViewportPoint(part1.Position)
+                            local pos2, onScreen2 = Camera:WorldToViewportPoint(part2.Position)
+                            
+                            if onScreen1 and onScreen2 then
+                                local bone = drawing.Bones[i]
+                                if bone then
+                                    bone.From = Vector2.new(pos1.X, pos1.Y)
+                                    bone.To = Vector2.new(pos2.X, pos2.Y)
+                                    bone.Color = ESP.BoneColor
+                                    bone.Visible = true
+                                end
+                            else
+                                if drawing.Bones[i] then
+                                    drawing.Bones[i].Visible = false
+                                end
+                            end
+                        else
+                            if drawing.Bones[i] then
+                                drawing.Bones[i].Visible = false
+                            end
+                        end
+                    end
+                else
+                    -- Скрываем все кости
+                    for i = 1, drawing.BoneCount do
+                        if drawing.Bones[i] then
+                            drawing.Bones[i].Visible = false
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Если игрок не виден, скрываем все
+        if not visible then
+            drawing.Box.Visible = false
+            drawing.HealthText.Visible = false
+            drawing.TeamText.Visible = false
+            drawing.HeadDot.Visible = false
+            
+            for i = 1, drawing.BoneCount do
+                if drawing.Bones[i] then
+                    drawing.Bones[i].Visible = false
+                end
             end
         end
     end
-    
-    -- Применяем интерполяцию с экспоненциальной функцией
-    local t = 1 - math.pow(1 - adaptiveSmoothing, deltaTime * 60)
-    local newDirection = currentDirection:Lerp(targetDirection, t)
-    
-    -- Гарантируем, что направление нормализовано
-    newDirection = newDirection.Unit
-    
-    return CFrame.new(cameraPos, cameraPos + newDirection)
-end
+end)
 
--- Антиджиттер система
-function ApplyAntiJitter(currentCFrame, newCFrame, deltaTime)
-    if not Aimbot.AntiJitter then return newCFrame end
-    
-    if SubPixelSystem.LastRay then
-        local lastDirection = SubPixelSystem.LastRay
-        local newDirection = newCFrame.LookVector
-        
-        local angleChange = math.acos(math.clamp(lastDirection:Dot(newDirection), -1, 1))
-        
-        -- Подавляем микро-флуктуации
-        if angleChange < math.rad(0.01) then
-            return CFrame.new(currentCFrame.Position, currentCFrame.Position + lastDirection)
-        end
-        
-        -- Сохраняем сглаженное направление
-        local smoothFactor = math.min(1, deltaTime * 1000)
-        local smoothedDirection = lastDirection:Lerp(newDirection, smoothFactor)
-        SubPixelSystem.LastRay = smoothedDirection.Unit
-    else
-        SubPixelSystem.LastRay = newCFrame.LookVector
-    end
-    
-    return CFrame.new(currentCFrame.Position, currentCFrame.Position + SubPixelSystem.LastRay)
-end
-
--- Получение абсолютно лучшей цели
-function GetPerfectTarget()
-    local bestTarget = nil
-    local bestScore = -math.huge
-    local bestPosition = nil
+-- АИМБОТ С ПРОГНОЗИРОВАНИЕМ
+function GetClosestPlayerToMouse()
+    local closestPlayer = nil
+    local shortestDistance = Aimbot.FOV
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+        if IsEnemy(player) and player.Character then
             local character = player.Character
             local humanoid = character:FindFirstChild("Humanoid")
             local head = character:FindFirstChild("Head")
             
             if humanoid and humanoid.Health > 0 and head then
-                -- Рассчитываем идеальную позицию
-                local perfectPos = CalculatePerfectHeadCenter(head)
-                
-                -- Применяем нейронное предсказание
-                local velocity = head.Velocity
-                local acceleration = historicalData[player] and historicalData[player][1].acceleration or Vector3.new(0,0,0)
-                perfectPos = NeuralPredictMovement(player, perfectPos, velocity, acceleration)
-                
-                -- Применяем квантовую блокировку
-                perfectPos = QuantumLockTarget(player, perfectPos)
-                
-                -- Рассчитываем оценку цели
-                local screenPos, onScreen = Camera:WorldToViewportPoint(perfectPos)
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 
                 if onScreen then
-                    -- Балльная система выбора цели
-                    local score = 0
-                    
-                    -- Близость к центру экрана
                     local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
-                    local distanceToCenter = (targetScreenPos - mousePos).Magnitude
+                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                    local distance = (mousePos - targetPos).Magnitude
                     
-                    score = score + (1000 / (distanceToCenter + 1))
-                    
-                    -- Близость по расстоянию
-                    local worldDistance = (perfectPos - Camera.CFrame.Position).Magnitude
-                    score = score + (500 / (worldDistance + 1))
-                    
-                    -- Здоровье цели (предпочитаем более слабых)
-                    local health = humanoid.Health
-                    score = score + ((100 - health) * 2)
-                    
-                    -- Учет истории попаданий
-                    if QuantumState.LockedPlayer == player then
-                        score = score + (QuantumState.LockStrength * 1000)
-                    end
-                    
-                    if score > bestScore then
-                        bestScore = score
-                        bestTarget = player
-                        bestPosition = perfectPos
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
                     end
                 end
             end
         end
     end
     
-    return bestTarget, bestPosition
+    return closestPlayer
 end
 
--- ОСНОВНОЙ ЦИКЛ С АБСОЛЮТНОЙ ТОЧНОСТЬЮ
-local lastUpdate = tick()
+-- ОСНОВНОЙ ЦИКЛ АИМБОТА
 RunService.RenderStepped:Connect(function()
-    local currentTime = tick()
-    local deltaTime = currentTime - lastUpdate
-    lastUpdate = currentTime
-    
     if Aimbot.Enabled then
-        local targetPlayer, perfectPosition = GetPerfectTarget()
+        local targetPlayer = GetClosestPlayerToMouse()
         
-        if targetPlayer and perfectPosition then
-            -- Получаем текущий CFrame камеры
-            local currentCFrame = Camera.CFrame
+        if targetPlayer and targetPlayer.Character then
+            local head = targetPlayer.Character:FindFirstChild("Head")
+            local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
             
-            -- Рассчитываем идеальный CFrame
-            local perfectCFrame = PerfectInterpolation(currentCFrame, perfectPosition, deltaTime)
-            
-            -- Применяем антиджиттер
-            perfectCFrame = ApplyAntiJitter(currentCFrame, perfectCFrame, deltaTime)
-            
-            -- Применяем CFrame с абсолютной точностью
-            Camera.CFrame = perfectCFrame
-            
-            -- Визуальная обратная связь (для отладки)
-            if ESP.Enabled then
-                -- Здесь можно добавить визуализацию точки прицеливания
-            end
-        end
-    end
-end)
-
--- ОБНОВЛЕННАЯ СИСТЕМА ESP С ИНФОРМАЦИЕЙ О ТОЧНОСТИ
-spawn(function()
-    while true do
-        if ESP.Enabled then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local character = player.Character
-                    local head = character:FindFirstChild("Head")
+            if head and rootPart then
+                local targetPosition = head.Position
+                
+                -- Автоматическое прогнозирование
+                if Aimbot.AutoPrediction then
+                    local velocity = rootPart.Velocity
+                    local distance = (head.Position - Camera.CFrame.Position).Magnitude
                     
-                    if head then
-                        -- Создаем или обновляем ESP
-                        if not drawings[player] then
-                            drawings[player] = {
-                                Box = Drawing.new("Square"),
-                                Name = Drawing.new("Text"),
-                                Health = Drawing.new("Text"),
-                                AccuracyDot = Drawing.new("Circle"),
-                                PredictionLine = Drawing.new("Line")
-                            }
-                            
-                            local d = drawings[player]
-                            d.Box.Thickness = 2
-                            d.Box.Filled = false
-                            d.Name.Size = 14
-                            d.Name.Center = true
-                            d.Name.Outline = true
-                            d.Health.Size = 12
-                            d.Health.Center = true
-                            d.Health.Outline = true
-                            d.AccuracyDot.Thickness = 2
-                            d.AccuracyDot.Filled = true
-                            d.AccuracyDot.Radius = 4
-                            d.PredictionLine.Thickness = 1
-                        end
-                        
-                        local d = drawings[player]
-                        local perfectPos = CalculatePerfectHeadCenter(head)
-                        local predictedPos = NeuralPredictMovement(player, perfectPos, head.Velocity, 
-                            historicalData[player] and historicalData[player][1].acceleration)
-                        
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
-                        
-                        if onScreen then
-                            -- Отображаем точку идеального прицеливания
-                            d.AccuracyDot.Position = Vector2.new(screenPos.X, screenPos.Y)
-                            d.AccuracyDot.Color = QuantumState.LockedPlayer == player and Color3.fromRGB(0, 255, 0) 
-                                                  or Color3.fromRGB(255, 0, 0)
-                            d.AccuracyDot.Visible = true
-                            
-                            -- Линия предсказания
-                            local currentScreenPos, _ = Camera:WorldToViewportPoint(perfectPos)
-                            d.PredictionLine.From = Vector2.new(currentScreenPos.X, currentScreenPos.Y)
-                            d.PredictionLine.To = Vector2.new(screenPos.X, screenPos.Y)
-                            d.PredictionLine.Color = Color3.fromRGB(255, 255, 0)
-                            d.PredictionLine.Visible = true
-                        else
-                            d.AccuracyDot.Visible = false
-                            d.PredictionLine.Visible = false
-                        end
-                    end
+                    -- Динамический расчет предсказания
+                    local dynamicPrediction = Aimbot.Prediction
+                    dynamicPrediction = dynamicPrediction + (velocity.Magnitude * 0.001)
+                    dynamicPrediction = dynamicPrediction * (distance / 100)
+                    dynamicPrediction = math.clamp(dynamicPrediction, 0.1, 0.25)
+                    
+                    targetPosition = targetPosition + (velocity * dynamicPrediction)
+                else
+                    -- Статическое предсказание
+                    local velocity = rootPart.Velocity
+                    targetPosition = targetPosition + (velocity * Aimbot.Prediction)
                 end
+                
+                -- Плавное наведение
+                local cameraPosition = Camera.CFrame.Position
+                local targetDirection = (targetPosition - cameraPosition).Unit
+                local currentDirection = Camera.CFrame.LookVector
+                local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
+                
+                Camera.CFrame = CFrame.new(cameraPosition, cameraPosition + newDirection)
             end
         end
-        
-        wait(0.016) -- 60 FPS
     end
 end)
 
--- СИСТЕМА АВТОНАСТРОЙКИ
-function AutoCalibratePrecision()
-    print("=== АВТОКАЛИБРОВКА АБСОЛЮТНОЙ ТОЧНОСТИ ===")
-    
-    -- Анализ сетевых условий
-    local ping = 0
-    if Stats and Stats.Network then
-        ping = Stats.Network.ServerStatsItem["Data Ping"] or 0
+-- ИНИЦИАЛИЗАЦИЯ ESP ДЛЯ ВСЕХ ИГРОКОВ
+for _, player in pairs(Players:GetPlayers()) do
+    if IsEnemy(player) then
+        CreatePlayerESP(player)
     end
-    
-    -- Автонастройка на основе пинга
-    if ping > 0 then
-        Aimbot.Prediction = 0.142 + (ping / 1000 * 0.5)
-        Aimbot.Prediction = math.clamp(Aimbot.Prediction, 0.12, 0.18)
-        
-        if ping > 100 then
-            Aimbot.Smoothing = 0.005
-            Aimbot.TimeDilation = 0.999
-        elseif ping > 50 then
-            Aimbot.Smoothing = 0.003
-            Aimbot.TimeDilation = 0.9995
-        else
-            Aimbot.Smoothing = 0.001
-            Aimbot.TimeDilation = 0.9999
-        end
-    end
-    
-    print("Ping: " .. ping .. "ms")
-    print("Prediction: " .. string.format("%.4f", Aimbot.Prediction))
-    print("Smoothing: " .. string.format("%.4f", Aimbot.Smoothing))
-    print("Time Dilation: " .. string.format("%.4f", Aimbot.TimeDilation))
-    print("========================================")
 end
 
--- МЕНЮШКА ДЛЯ УПРАВЛЕНИЯ (ВЕРНУЛ КАК В РАННИХ ВЕРСИЯХ)
+-- ОБРАБОТКА НОВЫХ ИГРОКОВ
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(0.5)
+        if IsEnemy(player) then
+            CreatePlayerESP(player)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    ClearPlayerESP(player)
+end)
+
+-- МЕНЮШКА
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
-local ESPToggle = Instance.new("TextButton")
-local AimbotToggle = Instance.new("TextButton")
 local Title = Instance.new("TextLabel")
 
+-- КНОПКИ ESP
+local ESPToggle = Instance.new("TextButton")
+local SkeletonToggle = Instance.new("TextButton")
+local BoxToggle = Instance.new("TextButton")
+local HeadToggle = Instance.new("TextButton")
+local HealthToggle = Instance.new("TextButton")
+local TeamToggle = Instance.new("TextButton")
+
+-- КНОПКИ AIMBOT
+local AimbotToggle = Instance.new("TextButton")
+local SmoothingLabel = Instance.new("TextLabel")
+local SmoothingSlider = Instance.new("TextButton")
+local PredictionLabel = Instance.new("TextLabel")
+local PredictionSlider = Instance.new("TextButton")
+local AutoPredictionToggle = Instance.new("TextButton")
+
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV9"
+ScreenGui.Name = "ColinMenuV10"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 220, 0, 160)
+Frame.Size = UDim2.new(0, 320, 0, 450)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "Colin's Quantum Aim v9"
-Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Text = "COLIN'S SCRIPT v10"
+Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
 
+-- ESP НАСТРОЙКИ
+local ESPTitle = Instance.new("TextLabel")
+ESPTitle.Parent = Frame
+ESPTitle.Text = "ESP SETTINGS"
+ESPTitle.Size = UDim2.new(0.9, 0, 0, 25)
+ESPTitle.Position = UDim2.new(0.05, 0, 0.12, 0)
+ESPTitle.BackgroundTransparency = 1
+ESPTitle.TextColor3 = Color3.fromRGB(0, 200, 255)
+ESPTitle.Font = Enum.Font.SourceSansBold
+ESPTitle.TextXAlignment = Enum.TextXAlignment.Left
+
 ESPToggle.Parent = Frame
-ESPToggle.Text = "QUANTUM ESP: ON"
-ESPToggle.Size = UDim2.new(0.9, 0, 0, 35)
-ESPToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+ESPToggle.Text = "ESP: ON"
+ESPToggle.Size = UDim2.new(0.9, 0, 0, 28)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.18, 0)
 ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ESPToggle.Font = Enum.Font.SourceSans
 ESPToggle.MouseButton1Click:Connect(function()
     ESP.Enabled = not ESP.Enabled
-    ESPToggle.Text = "QUANTUM ESP: " .. (ESP.Enabled and "ON" or "OFF")
+    ESPToggle.Text = "ESP: " .. (ESP.Enabled and "ON" or "OFF")
     ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
     
-    -- Очищаем ESP если выключаем
     if not ESP.Enabled then
         for player in pairs(drawings) do
-            if drawings[player].Box then drawings[player].Box:Remove() end
-            if drawings[player].Name then drawings[player].Name:Remove() end
-            if drawings[player].Health then drawings[player].Health:Remove() end
-            if drawings[player].AccuracyDot then drawings[player].AccuracyDot:Remove() end
-            if drawings[player].PredictionLine then drawings[player].PredictionLine:Remove() end
+            ClearPlayerESP(player)
         end
-        drawings = {}
     end
 end)
 
+SkeletonToggle.Parent = Frame
+SkeletonToggle.Text = "Skeleton ESP: ON"
+SkeletonToggle.Size = UDim2.new(0.9, 0, 0, 24)
+SkeletonToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+SkeletonToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+SkeletonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+SkeletonToggle.Font = Enum.Font.SourceSans
+SkeletonToggle.MouseButton1Click:Connect(function()
+    ESP.Skeleton = not ESP.Skeleton
+    SkeletonToggle.Text = "Skeleton ESP: " .. (ESP.Skeleton and "ON" or "OFF")
+    SkeletonToggle.BackgroundColor3 = ESP.Skeleton and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+BoxToggle.Parent = Frame
+BoxToggle.Text = "Box ESP: ON"
+BoxToggle.Size = UDim2.new(0.9, 0, 0, 24)
+BoxToggle.Position = UDim2.new(0.05, 0, 0.31, 0)
+BoxToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+BoxToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BoxToggle.Font = Enum.Font.SourceSans
+BoxToggle.MouseButton1Click:Connect(function()
+    ESP.Box = not ESP.Box
+    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON" or "OFF")
+    BoxToggle.BackgroundColor3 = ESP.Box and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+HeadToggle.Parent = Frame
+HeadToggle.Text = "Head Dot: ON"
+HeadToggle.Size = UDim2.new(0.9, 0, 0, 24)
+HeadToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
+HeadToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+HeadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HeadToggle.Font = Enum.Font.SourceSans
+HeadToggle.MouseButton1Click:Connect(function()
+    ESP.HeadDot = not ESP.HeadDot
+    HeadToggle.Text = "Head Dot: " .. (ESP.HeadDot and "ON" or "OFF")
+    HeadToggle.BackgroundColor3 = ESP.HeadDot and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+HealthToggle.Parent = Frame
+HealthToggle.Text = "Health Text: ON"
+HealthToggle.Size = UDim2.new(0.9, 0, 0, 24)
+HealthToggle.Position = UDim2.new(0.05, 0, 0.43, 0)
+HealthToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+HealthToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HealthToggle.Font = Enum.Font.SourceSans
+HealthToggle.MouseButton1Click:Connect(function()
+    ESP.Health = not ESP.Health
+    HealthToggle.Text = "Health Text: " .. (ESP.Health and "ON" or "OFF")
+    HealthToggle.BackgroundColor3 = ESP.Health and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+TeamToggle.Parent = Frame
+TeamToggle.Text = "Team Text: ON"
+TeamToggle.Size = UDim2.new(0.9, 0, 0, 24)
+TeamToggle.Position = UDim2.new(0.05, 0, 0.49, 0)
+TeamToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+TeamToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeamToggle.Font = Enum.Font.SourceSans
+TeamToggle.MouseButton1Click:Connect(function()
+    ESP.Team = not ESP.Team
+    TeamToggle.Text = "Team Text: " .. (ESP.Team and "ON" or "OFF")
+    TeamToggle.BackgroundColor3 = ESP.Team and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+-- AIMBOT НАСТРОЙКИ
+local AimbotTitle = Instance.new("TextLabel")
+AimbotTitle.Parent = Frame
+AimbotTitle.Text = "AIMBOT SETTINGS"
+AimbotTitle.Size = UDim2.new(0.9, 0, 0, 25)
+AimbotTitle.Position = UDim2.new(0.05, 0, 0.57, 0)
+AimbotTitle.BackgroundTransparency = 1
+AimbotTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+AimbotTitle.Font = Enum.Font.SourceSansBold
+AimbotTitle.TextXAlignment = Enum.TextXAlignment.Left
+
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "ABSOLUTE AIMBOT: OFF"
-AimbotToggle.Size = UDim2.new(0.9, 0, 0, 35)
-AimbotToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
+AimbotToggle.Text = "AIMBOT: OFF"
+AimbotToggle.Size = UDim2.new(0.9, 0, 0, 28)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.63, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
 AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "ABSOLUTE AIMBOT: " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.Text = "AIMBOT: " .. (Aimbot.Enabled and "ON" or "OFF")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
--- Переключение меню по клавише INSERT
+SmoothingLabel = Instance.new("TextLabel")
+SmoothingLabel.Parent = Frame
+SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
+SmoothingLabel.Size = UDim2.new(0.4, 0, 0, 24)
+SmoothingLabel.Position = UDim2.new(0.05, 0, 0.70, 0)
+SmoothingLabel.BackgroundTransparency = 1
+SmoothingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothingLabel.Font = Enum.Font.SourceSans
+SmoothingLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+SmoothingSlider = Instance.new("TextButton")
+SmoothingSlider.Parent = Frame
+SmoothingSlider.Text = "Adjust"
+SmoothingSlider.Size = UDim2.new(0.45, 0, 0, 24)
+SmoothingSlider.Position = UDim2.new(0.5, 0, 0.70, 0)
+SmoothingSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+SmoothingSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+SmoothingSlider.Font = Enum.Font.SourceSans
+SmoothingSlider.MouseButton1Click:Connect(function()
+    Aimbot.Smoothing = (Aimbot.Smoothing + 0.005) % 0.15
+    SmoothingLabel.Text = "Smoothing: " .. string.format("%.3f", Aimbot.Smoothing)
+end)
+
+PredictionLabel = Instance.new("TextLabel")
+PredictionLabel.Parent = Frame
+PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
+PredictionLabel.Size = UDim2.new(0.4, 0, 0, 24)
+PredictionLabel.Position = UDim2.new(0.05, 0, 0.77, 0)
+PredictionLabel.BackgroundTransparency = 1
+PredictionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PredictionLabel.Font = Enum.Font.SourceSans
+PredictionLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+PredictionSlider = Instance.new("TextButton")
+PredictionSlider.Parent = Frame
+PredictionSlider.Text = "Adjust"
+PredictionSlider.Size = UDim2.new(0.45, 0, 0, 24)
+PredictionSlider.Position = UDim2.new(0.5, 0, 0.77, 0)
+PredictionSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+PredictionSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+PredictionSlider.Font = Enum.Font.SourceSans
+PredictionSlider.MouseButton1Click:Connect(function()
+    Aimbot.Prediction = (Aimbot.Prediction + 0.01) % 0.25
+    PredictionLabel.Text = "Prediction: " .. string.format("%.3f", Aimbot.Prediction)
+end)
+
+AutoPredictionToggle = Instance.new("TextButton")
+AutoPredictionToggle.Parent = Frame
+AutoPredictionToggle.Text = "Auto Prediction: ON"
+AutoPredictionToggle.Size = UDim2.new(0.9, 0, 0, 24)
+AutoPredictionToggle.Position = UDim2.new(0.05, 0, 0.84, 0)
+AutoPredictionToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+AutoPredictionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoPredictionToggle.Font = Enum.Font.SourceSans
+AutoPredictionToggle.MouseButton1Click:Connect(function()
+    Aimbot.AutoPrediction = not Aimbot.AutoPrediction
+    AutoPredictionToggle.Text = "Auto Prediction: " .. (Aimbot.AutoPrediction and "ON" or "OFF")
+    AutoPredictionToggle.BackgroundColor3 = Aimbot.AutoPrediction and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+end)
+
+-- ПЕРЕКЛЮЧЕНИЕ МЕНЮ
 Mouse.KeyDown:Connect(function(key)
     if key == "insert" then
         Menu.Open = not Menu.Open
         Frame.Visible = Menu.Open
     end
-    if key == "f10" then
-        AutoCalibratePrecision()
-    end
-    if key == "f11" then
-        local target, pos = GetPerfectTarget()
-        if target and pos then
-            local screenPos = Camera:WorldToViewportPoint(pos)
-            local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-            local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-            local pixelError = (targetPos - mousePos).Magnitude
-            
-            print("=== ДИАГНОСТИКА ТОЧНОСТИ ===")
-            print("Цель: " .. target.Name)
-            print("Ошибка в пикселях: " .. string.format("%.2f", pixelError))
-            print("Расстояние: " .. string.format("%.1f", (pos - Camera.CFrame.Position).Magnitude))
-            print("Блокировка: " .. string.format("%.1f%%", QuantumState.LockStrength * 100))
-            print("==========================")
-        end
-    end
-    if key == "f12" then
-        Aimbot.QuantumLock = not Aimbot.QuantumLock
-        Aimbot.NeuralPrediction = not Aimbot.NeuralPrediction
-        print("Режимы переключены!")
-        print("Квантовая блокировка: " .. (Aimbot.QuantumLock and "ВКЛ" or "ВЫКЛ"))
-        print("Нейронное предсказание: " .. (Aimbot.NeuralPrediction and "ВКЛ" or "ВЫКЛ"))
-    end
 end)
 
--- ЗАПУСК СИСТЕМЫ
-spawn(function()
-    wait(2) -- Ждем загрузки
-    AutoCalibratePrecision()
-    
-    print("")
-    print("СИСТЕМА АКТИВИРОВАНА:")
-    print("• Квантовая блокировка: " .. (Aimbot.QuantumLock and "АКТИВНА" or "ВЫКЛ"))
-    print("• Нейронное предсказание: " .. (Aimbot.NeuralPrediction and "АКТИВНО" or "ВЫКЛ"))
-    print("• Субпиксельная точность: " .. (Aimbot.SubPixelPrecision and "АКТИВНА" or "ВЫКЛ"))
-    print("• Идеальная интерполяция: " .. (Aimbot.PerfectInterpolation and "АКТИВНА" or "ВЫКЛ"))
-    print("• Антиджиттер система: " .. (Aimbot.AntiJitter and "АКТИВНА" or "ВЫКЛ"))
-    print("")
-    print("ГОРЯЧИЕ КЛАВИШИ:")
-    print("INSERT - Меню (включить/выключить менюшку)")
-    print("F10 - Автокалибровка")
-    print("F11 - Диагностика точности")
-    print("F12 - Переключение режимов")
-    print("")
-    print("МЕНЮШКА ВОЗВРАЩЕНА!")
-    print("Используй INSERT чтобы показать/скрыть меню")
-    print("Кнопки ESP и AIMBOT работают как в старых версиях")
-    print("")
-end)
-
+print("╔══════════════════════════════════════════════════════╗")
+print("║         COLIN'S SCRIPT v10 - ЗАГРУЖЕН                ║")
+print("╠══════════════════════════════════════════════════════╣")
+print("║ FEATURES:                                            ║")
+print("║ • Skeleton ESP (белые кости)                        ║")
+print("║ • Box ESP с цветом команды                          ║")
+print("║ • Точка на голове                                   ║")
+print("║ • Отображение здоровья                              ║")
+print("║ • Определение команды                               ║")
+print("║ • Умный аимбот с авто-предсказанием                 ║")
+print("║ • Менюшка с настройками                             ║")
+print("╚══════════════════════════════════════════════════════╝")
 print("")
-print("╔══════════════════════════════════════════════════════════╗")
-print("║  СИСТЕМА АБСОЛЮТНОЙ ТОЧНОСТИ АКТИВИРОВАНА УСПЕШНО!      ║")
-print("║                                                          ║")
-print("║  Этот аимбот использует:                                 ║")
-print("║  • Квантовую блокировку целей                           ║")
-print("║  • Нейронные сети предсказания движения                 ║")
-print("║  • Субпиксельную точность прицеливания                  ║")
-print("║  • Математически идеальную интерполяцию                 ║")
-print("║  • Адаптивную систему подавления джиттера               ║")
-print("║                                                          ║")
-print("║  Точность: 100.000000000000000000000000000000000000000%  ║")
-print("║                                                          ║")
-print("║  МЕНЮШКА ВОЗВРАЩЕНА! Используй INSERT для управления     ║")
-print("╚══════════════════════════════════════════════════════════╝")
+print("УПРАВЛЕНИЕ:")
+print("INSERT - показать/скрыть меню")
+print("")
+print("ESP отображает:")
+print("- Скелет (белые линии между частями тела)")
+print("- Рамку вокруг игрока (цвет команды)")
+print("- Точку на голове (цвет команды)")
+print("- Здоровье (цвет зависит от HP)")
+print("- Название команды (цвет команды)")
