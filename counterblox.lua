@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V12 - FULL FUNCTIONAL + STABLE]
+-- SEMIRAX CHEAT [V12 - FINAL STABLE REBUILD]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Зачистка старых версий
+-- Полная очистка
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -25,7 +25,7 @@ local Flags = {
 
 local NameTags = {}
 
--- Круг FOV (Исправлено позиционирование)
+-- Круг FOV (Привязан к мыши)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
@@ -127,7 +127,7 @@ end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTag(p) end end
 Players.PlayerAdded:Connect(CreateTag)
 
--- ГЛАВНЫЙ ЦИКЛ (Оптимизированный)
+-- Главный цикл
 RunService.RenderStepped:Connect(function()
     local MousePos = UserInputService:GetMouseLocation()
     FOVCircle.Position = MousePos
@@ -144,7 +144,7 @@ RunService.RenderStepped:Connect(function()
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
             
-            -- ESP (Names)
+            -- ESP (Ники)
             if onScreen and Flags.ESP and isEnemy then
                 if not tag then CreateTag(p) tag = NameTags[p] end
                 tag.Position = Vector2.new(pos.X, pos.Y - 25)
@@ -152,7 +152,7 @@ RunService.RenderStepped:Connect(function()
                 tag.Visible = true
             elseif tag then tag.Visible = false end
 
-            -- Wallhack (Highlight)
+            -- Wallhack
             if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.Name = "SemiraxHL"
@@ -170,7 +170,7 @@ RunService.RenderStepped:Connect(function()
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
 end)
 
--- БЕЗОПАСНЫЙ NO RECOIL / SPREAD
+-- No Recoil / Spread
 local mt = getrawmetatable(game)
 local old = mt.__index
 setreadonly(mt, false)
