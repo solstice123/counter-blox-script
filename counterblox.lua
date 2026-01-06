@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8 - INSERT TO HIDE + CLOSE BUTTON]
+-- SEMIRAX CHEAT [V8.1 - ESP WITH HPBAR & ITEM HOLDING]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -17,13 +17,14 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 20,
+    Radius = 60,
     MenuVisible = true
 }
 
 local NameTags = {}
+local HPBars = {}
+local HPBarBacks = {}
 
--- Круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
@@ -31,11 +32,10 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Final_V8"
-ScreenGui.DisplayOrder = 999999
+ScreenGui.Name = "Semirax_Tactical_V8.1"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 190, 0, 360) -- Увеличил под кнопку закрытия
+Main.Size = UDim2.new(0, 190, 0, 360) 
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
@@ -50,33 +50,14 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
--- ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ВИДИМОСТИ
 local function ToggleMenu()
     Flags.MenuVisible = not Flags.MenuVisible
     Main.Visible = Flags.MenuVisible
 end
 
--- КЛАВИША INSERT ДЛЯ СКРЫТИЯ
 UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
-        ToggleMenu()
-    end
+    if not gpe and input.KeyCode == Enum.KeyCode.Insert then ToggleMenu() end
 end)
-
--- ПЕРЕТАСКИВАНИЕ
-local dragging, dragStart, startPos
-Main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true dragStart = input.Position startPos = Main.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
 local function CreateToggle(name, flag, y)
     local btn = Instance.new("TextButton", Main)
@@ -85,7 +66,6 @@ local function CreateToggle(name, flag, y)
     btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
     btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
     btn.TextColor3 = Color3.new(1, 1, 1)
-    
     btn.MouseButton1Click:Connect(function()
         Flags[flag] = not Flags[flag]
         btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
@@ -95,12 +75,11 @@ local function CreateToggle(name, flag, y)
 end
 
 CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("BOX ESP", "ESP", 80)
+CreateToggle("ADVANCED ESP", "ESP", 80)
 CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
--- КНОПКА ЗАКРЫТЬ (CLOSE)
 local CloseBtn = Instance.new("TextButton", Main)
 CloseBtn.Size = UDim2.new(0.9, 0, 0, 30)
 CloseBtn.Position = UDim2.new(0.05, 0, 0, 320)
@@ -109,42 +88,30 @@ CloseBtn.Text = "CLOSE (Insert to open)"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
 CloseBtn.MouseButton1Click:Connect(ToggleMenu)
 
-local FOVLabel = Instance.new("TextLabel", Main)
-FOVLabel.Size = UDim2.new(1, 0, 0, 25)
-FOVLabel.Position = UDim2.new(0, 0, 0, 245)
-FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
-FOVLabel.TextColor3 = Color3.new(1, 1, 1)
-FOVLabel.BackgroundTransparency = 1
-
-local function CreateAdj(text, x, delta)
-    local b = Instance.new("TextButton", Main)
-    b.Size = UDim2.new(0.4, 0, 0, 35)
-    b.Position = UDim2.new(x, 0, 0, 275)
-    b.Text = text
-    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.MouseButton1Click:Connect(function()
-        Flags.Radius = math.clamp(Flags.Radius + delta, 10, 600)
-        FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
-    end)
-end
-
-CreateAdj("-", 0.05, -10)
-CreateAdj("+", 0.55, 10)
-
-local function CreateTag(player)
+local function CreateESP(player)
     local text = Drawing.new("Text")
     text.Visible = false
     text.Center = true
     text.Outline = true
-    text.Font = 2
     text.Size = 13
     text.Color = Color3.new(1, 1, 1)
     NameTags[player] = text
+
+    local barBack = Drawing.new("Line")
+    barBack.Visible = false
+    barBack.Thickness = 4
+    barBack.Color = Color3.new(0, 0, 0)
+    HPBarBacks[player] = barBack
+
+    local bar = Drawing.new("Line")
+    bar.Visible = false
+    bar.Thickness = 2
+    bar.Color = Color3.new(0, 1, 0)
+    HPBars[player] = bar
 end
 
-for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTag(p) end end
-Players.PlayerAdded:Connect(CreateTag)
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p) end end
+Players.PlayerAdded:Connect(CreateESP)
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
@@ -156,28 +123,57 @@ RunService.RenderStepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
         local char = p.Character
         local tag = NameTags[p]
-        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        local bar = HPBars[p]
+        local barBack = HPBarBacks[p]
+
+        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") then
+            local hum = char.Humanoid
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
             
-            if onScreen and Flags.ESP and isEnemy then
-                if not tag then CreateTag(p) tag = NameTags[p] end
-                tag.Position = Vector2.new(pos.X, pos.Y - 25)
-                tag.Text = p.DisplayName or p.Name
+            if onScreen and Flags.ESP and isEnemy and hum.Health > 0 then
+                -- Определяем предмет в руках
+                local tool = char:FindFirstChildOfClass("Tool")
+                local toolName = tool and tool.Name or "None"
+                local hpPercent = math.floor((hum.Health / hum.MaxHealth) * 100)
+                
+                -- Текст: Имя | HP% | Предмет
+                tag.Position = Vector2.new(pos.X, pos.Y - 40)
+                tag.Text = string.format("%s [%d%%]\nHolding: %s", p.DisplayName or p.Name, hpPercent, toolName)
                 tag.Visible = true
-            elseif tag then tag.Visible = false end
 
-            if Flags.Wallhack and isEnemy then
+                -- Рисуем HP Bar
+                local barWidth = 40
+                barBack.From = Vector2.new(pos.X - barWidth/2, pos.Y - 20)
+                barBack.To = Vector2.new(pos.X + barWidth/2, pos.Y - 20)
+                barBack.Visible = true
+
+                bar.From = Vector2.new(pos.X - barWidth/2, pos.Y - 20)
+                bar.To = Vector2.new(pos.X - barWidth/2 + (barWidth * (hum.Health/hum.MaxHealth)), pos.Y - 20)
+                bar.Color = Color3.fromHSV(hum.Health/hum.MaxHealth * 0.3, 1, 1) -- Смена цвета от красного к зеленому
+                bar.Visible = true
+            else
+                if tag then tag.Visible = false end
+                if bar then bar.Visible = false end
+                if barBack then barBack.Visible = false end
+            end
+
+            -- Wallhack и Aimbot остаются прежними
+            if Flags.Wallhack and isEnemy and hum.Health > 0 then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.Name = "SemiraxHL"
                 hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
 
-            if Flags.Aimbot and isEnemy and onScreen then
+            if Flags.Aimbot and isEnemy and onScreen and hum.Health > 0 then
                 local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
                 if d < MinDist then MinDist = d BestTarget = char.Head end
             end
-        elseif tag then tag.Visible = false end
+        else
+            if tag then tag.Visible = false end
+            if bar then bar.Visible = false end
+            if barBack then barBack.Visible = false end
+        end
     end
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
 end)
