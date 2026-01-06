@@ -1,4 +1,3 @@
--- SEMIRAX PREMIUM V10.4 [TEAM-BASED CHAMS + BIG ESP]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +5,6 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Очистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -14,23 +12,22 @@ end
 local Flags = {
     Aimbot = true,
     ESP = true,
-    Wallhack = true, -- Тело теперь светится цветом команды
+    Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
+    GodMode = false,
     Radius = 40, 
     MenuOpen = true
 }
 
 local ESP_Data = {}
 
--- Круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 0.8; FOVCircle.Visible = Flags.FOV_Enabled
 
--- ИНТЕРФЕЙС
-local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_V10_4"
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_V10_5"
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 220, 0, 420); Main.Position = UDim2.new(0.5, -110, 0.4, -210)
+Main.Size = UDim2.new(0, 220, 0, 460); Main.Position = UDim2.new(0.5, -110, 0.4, -230)
 Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12); Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
@@ -39,7 +36,6 @@ Header.Size = UDim2.new(1, 0, 0, 50); Header.BackgroundColor3 = Color3.new(1, 1,
 Header.TextColor3 = Color3.new(0, 0, 0); Header.Font = Enum.Font.GothamBold; Header.TextSize = 18; Header.Active = true
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
 
--- Логика перетаскивания
 local dragStart, startPos, dragging
 Header.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = Main.Position end end)
 UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
@@ -56,12 +52,21 @@ local function CreateToggle(name, flag)
     btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30)
     btn.Text = name; btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamMedium
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    btn.MouseButton1Click:Connect(function() Flags[flag] = not Flags[flag]; btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30); btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1) if flag == "FOV_Enabled" then FOVCircle.Visible = Flags[flag] end end)
+    btn.MouseButton1Click:Connect(function() 
+        Flags[flag] = not Flags[flag]; 
+        btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30); 
+        btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1) 
+        if flag == "FOV_Enabled" then FOVCircle.Visible = Flags[flag] end 
+    end)
 end
 
-CreateToggle("RAGE AIM", "Aimbot"); CreateToggle("BOX ESP", "ESP"); CreateToggle("TEAM CHAMS", "Wallhack"); CreateToggle("FOV CIRCLE", "FOV_Enabled"); CreateToggle("TEAM CHECK", "TeamCheck")
+CreateToggle("RAGE AIM", "Aimbot"); 
+CreateToggle("BOX ESP", "ESP"); 
+CreateToggle("TEAM CHAMS", "Wallhack"); 
+CreateToggle("FOV CIRCLE", "FOV_Enabled"); 
+CreateToggle("TEAM CHECK", "TeamCheck");
+CreateToggle("INF HEALTH", "GodMode")
 
--- Регуляторы
 local Bottom = Instance.new("Frame", Container); Bottom.Size = UDim2.new(0.9, 0, 0, 70); Bottom.BackgroundTransparency = 1
 local RadLabel = Instance.new("TextLabel", Bottom); RadLabel.Size = UDim2.new(1, 0, 0, 25); RadLabel.Text = "FOV RADIUS: " .. Flags.Radius; RadLabel.TextColor3 = Color3.new(1, 1, 1); RadLabel.Font = Enum.Font.GothamSemibold; RadLabel.BackgroundTransparency = 1
 local BtnH = Instance.new("Frame", Bottom); BtnH.Size = UDim2.new(1, 0, 0, 40); BtnH.Position = UDim2.new(0, 0, 0, 25); BtnH.BackgroundTransparency = 1
@@ -71,15 +76,14 @@ local function CreateAdj(t, x, d)
 end
 CreateAdj("-", 0, -10); CreateAdj("+", 0.52, 10)
 
--- ХУД И ЦВЕТНЫЕ ЧАМСЫ
 local function AddESP(p)
     ESP_Data[p] = {
         Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"),
-        Highlight = Instance.new("Highlight") -- Wallhack
+        Highlight = Instance.new("Highlight")
     }
     local d = ESP_Data[p]
     d.Box.Color = Color3.new(1, 1, 1); d.Tag.Color = Color3.new(1, 1, 1); d.Tag.Outline = true; d.Tag.Center = true
-    d.Tag.Size = 22; d.Tag.Font = 2 -- Читабельный текст
+    d.Tag.Size = 22; d.Tag.Font = 2
     d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0, 0, 0); d.Bar.Filled = true
     d.Highlight.FillTransparency = 0.4; d.Highlight.OutlineTransparency = 0
 end
@@ -87,12 +91,15 @@ end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP)
 
-RunService:BindToRenderStep("Semirax_Team_Chams", Enum.RenderPriority.Last.Value, function()
+RunService:BindToRenderStep("Semirax_Final_Loop", Enum.RenderPriority.Last.Value, function()
+    if Flags.GodMode and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.Health = LocalPlayer.Character.Humanoid.MaxHealth
+    end
+
     FOVCircle.Position = UserInputService:GetMouseLocation(); FOVCircle.Radius = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
-    
-    -- Rage Aim
     local CurrentTarget = nil; local MinDist = Flags.Radius
+
     if Flags.Aimbot then
         for _, p in pairs(Players:GetPlayers()) do
             local char = p.Character
@@ -109,25 +116,22 @@ RunService:BindToRenderStep("Semirax_Team_Chams", Enum.RenderPriority.Last.Value
         if CurrentTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, CurrentTarget.Position) end
     end
 
-    -- Командная подцветка (Chams)
     for _, p in pairs(Players:GetPlayers()) do
         local d = ESP_Data[p]; local char = p.Character
         if p ~= LocalPlayer and d and char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             local isEnemy = (p.Team ~= LocalPlayer.Team)
             local rootPos, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
 
-            -- Установка цвета в зависимости от команды
             d.Highlight.Parent = char
             d.Highlight.Enabled = Flags.Wallhack
             if isEnemy then
-                d.Highlight.FillColor = Color3.fromRGB(255, 50, 50) -- Красный для врагов
+                d.Highlight.FillColor = Color3.fromRGB(255, 50, 50)
                 d.Highlight.OutlineColor = Color3.new(1, 0, 0)
             else
-                d.Highlight.FillColor = Color3.fromRGB(50, 150, 255) -- Синий для своих
+                d.Highlight.FillColor = Color3.fromRGB(50, 150, 255)
                 d.Highlight.OutlineColor = Color3.new(0, 0.5, 1)
             end
 
-            -- ESP
             if onScreen and Flags.ESP and (not Flags.TeamCheck or isEnemy) then
                 local top = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.7, 0))
                 local bottom = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
