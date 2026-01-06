@@ -1,4 +1,4 @@
--- SEMIRAX HUB [FOV ADJUSTER EDITION]
+-- SEMIRAX HUB [FOV ADJUSTER VISUAL FIXED]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,7 +8,7 @@ local Camera = workspace.CurrentCamera
 
 -- Очистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
-    if v.Name == "Semirax_Adjust_Menu" then v:Destroy() end
+    if v.Name == "Semirax_Adjust_Menu" or v.Name == "Semirax_God_Menu" then v:Destroy() end
 end
 
 local Flags = {
@@ -17,7 +17,7 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 40 -- Начальное значение
+    Radius = 40 
 }
 
 -- Визуал круга FOV
@@ -29,9 +29,10 @@ FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "Semirax_Adjust_Menu"
+ScreenGui.DisplayOrder = 999999
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 200, 0, 320)
+Main.Size = UDim2.new(0, 180, 0, 310) -- Увеличил размер под кнопки
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 1
@@ -67,39 +68,38 @@ local function CreateToggle(name, flag, y)
     end)
 end
 
--- Регулятор FOV
+-- РЕГУЛЯТОР (ВИЗУАЛЬНЫЙ)
 local FOVLabel = Instance.new("TextLabel", Main)
-FOVLabel.Size = UDim2.new(1, 0, 0, 30)
-FOVLabel.Position = UDim2.new(0, 0, 0, 260)
+FOVLabel.Size = UDim2.new(1, 0, 0, 25)
+FOVLabel.Position = UDim2.new(0, 0, 0, 245)
 FOVLabel.Text = "FOV Radius: " .. Flags.Radius
 FOVLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVLabel.BackgroundTransparency = 1
 
-local function CreateAdjustButton(text, xOffset, delta)
-    local btn = Instance.new("TextButton", Main)
-    btn.Size = UDim2.new(0.4, 0, 0, 30)
-    btn.Position = UDim2.new(xOffset, 0, 0, 290)
-    btn.Text = text
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.MouseButton1Click:Connect(function()
+local function CreateAdj(text, x, delta)
+    local b = Instance.new("TextButton", Main)
+    b.Size = UDim2.new(0.4, 0, 0, 30)
+    b.Position = UDim2.new(x, 0, 0, 275)
+    b.Text = text
+    b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.MouseButton1Click:Connect(function()
         Flags.Radius = math.clamp(Flags.Radius + delta, 10, 600)
         FOVLabel.Text = "FOV Radius: " .. Flags.Radius
     end)
 end
 
-CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("BOX ESP", "ESP", 85)
-CreateToggle("WALLHACK", "Wallhack", 130)
-CreateToggle("FOV CIRCLE", "FOV_Enabled", 175)
-CreateToggle("TEAM CHECK", "TeamCheck", 220)
-CreateAdjustButton("-", 0.05, -10)
-CreateAdjustButton("+", 0.55, 10)
+CreateToggle("RAGE AIM", "Aimbot", 35)
+CreateToggle("BOX ESP", "ESP", 75)
+CreateToggle("WALLHACK", "Wallhack", 115)
+CreateToggle("FOV CIRCLE", "FOV_Enabled", 155)
+CreateToggle("TEAM CHECK", "TeamCheck", 195)
+CreateAdj("-", 0.05, -10)
+CreateAdj("+", 0.55, 10)
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
-    
     local BestTarget = nil
     local MinDist = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
