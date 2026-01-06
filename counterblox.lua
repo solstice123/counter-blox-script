@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V12 - FINAL STABLE REBUILD]
+-- SEMIRAX CHEAT [V17 - FULL FUNCTIONAL + CENTER PRECISION]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Полная очистка
+-- Зачистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -24,8 +24,6 @@ local Flags = {
 }
 
 local NameTags = {}
-
--- Круг FOV (Привязан к мыши)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
@@ -33,7 +31,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = false
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Ultimate_V12"
+ScreenGui.Name = "Semirax_Ultimate_V17"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 200, 0, 440) 
@@ -51,7 +49,7 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
--- Переключение видимости (Insert)
+-- Переключение (Insert)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.Insert then
         Flags.MenuVisible = not Flags.MenuVisible
@@ -74,7 +72,6 @@ local function CreateToggle(name, flag, y)
     end)
 end
 
--- Кнопки функционала
 CreateToggle("RAGE AIM", "Aimbot", 40)
 CreateToggle("BOX ESP", "ESP", 75)
 CreateToggle("WALLHACK", "Wallhack", 110)
@@ -83,7 +80,7 @@ CreateToggle("NO SPREAD", "NoSpread", 180)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 215)
 CreateToggle("TEAM CHECK", "TeamCheck", 250)
 
--- Регулятор FOV
+-- Настройки FOV
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
 FOVLabel.Position = UDim2.new(0, 0, 0, 290)
@@ -99,35 +96,25 @@ local function CreateAdj(text, x, delta)
     b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     b.TextColor3 = Color3.new(1, 1, 1)
     b.MouseButton1Click:Connect(function()
-        Flags.Radius = math.clamp(Flags.Radius + delta, 5, 500)
+        Flags.Radius = math.clamp(Flags.Radius + delta, 1, 500)
         FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
     end)
 end
-CreateAdj("-", 0.05, -10)
-CreateAdj("+", 0.55, 10)
+CreateAdj("-", 0.05, -5)
+CreateAdj("+", 0.55, 5)
 
-local CloseBtn = Instance.new("TextButton", Main)
-CloseBtn.Size = UDim2.new(0.9, 0, 0, 35)
-CloseBtn.Position = UDim2.new(0.05, 0, 0, 370)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-CloseBtn.Text = "CLOSE (INSERT)"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.MouseButton1Click:Connect(function() Flags.MenuVisible = false Main.Visible = false end)
+-- ФУНКЦИОНАЛ ПЕРЕХВАТА ВЫСТРЕЛА (No Spread / No Recoil)
+local mt = getrawmetatable(game)
+local old = mt.__index
+setreadonly(mt, false)
+mt.__index = newcclosure(function(t, k)
+    if Flags.NoRecoil and (k == "Recoil" or k == "RecoilMin" or k == "RecoilMax") then return 0 end
+    if Flags.NoSpread and (k == "Spread" or k == "Accuracy" or k == "Inaccuracy") then return 0 end
+    return old(t, k)
+end)
+setreadonly(mt, true)
 
--- Создание Nametags
-local function CreateTag(player)
-    local text = Drawing.new("Text")
-    text.Visible = false
-    text.Center = true
-    text.Outline = true
-    text.Size = 14
-    text.Color = Color3.new(1, 1, 1)
-    NameTags[player] = text
-end
-for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTag(p) end end
-Players.PlayerAdded:Connect(CreateTag)
-
--- Главный цикл
+-- Цикл отрисовки и логики
 RunService.RenderStepped:Connect(function()
     local MousePos = UserInputService:GetMouseLocation()
     FOVCircle.Position = MousePos
@@ -140,19 +127,23 @@ RunService.RenderStepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
         local char = p.Character
         local tag = NameTags[p]
-        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
             
             -- ESP (Ники)
             if onScreen and Flags.ESP and isEnemy then
-                if not tag then CreateTag(p) tag = NameTags[p] end
+                if not tag then 
+                    tag = Drawing.new("Text") 
+                    tag.Center = true tag.Outline = true tag.Size = 14 tag.Color = Color3.new(1,1,1)
+                    NameTags[p] = tag 
+                end
                 tag.Position = Vector2.new(pos.X, pos.Y - 25)
                 tag.Text = p.DisplayName or p.Name
                 tag.Visible = true
             elseif tag then tag.Visible = false end
 
-            -- Wallhack
+            -- Wallhack (Highlight)
             if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.Name = "SemiraxHL"
@@ -169,14 +160,3 @@ RunService.RenderStepped:Connect(function()
     
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
 end)
-
--- No Recoil / Spread
-local mt = getrawmetatable(game)
-local old = mt.__index
-setreadonly(mt, false)
-mt.__index = newcclosure(function(t, k)
-    if Flags.NoRecoil and (k == "Recoil" or k == "RecoilMin" or k == "RecoilMax") then return 0 end
-    if Flags.NoSpread and (k == "Spread" or k == "Accuracy") then return 0 end
-    return old(t, k)
-end)
-setreadonly(mt, true)
