@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v13 - PROPORTIONAL ESP & FOV CONTROL
--- Пропорциональный ESP + регулировка FOV + синхронизация меню с биндами
+-- Counter-Blox Script by Colin v13.1 - ESP FIXED
+-- Пропорциональный ESP + регулировка FOV + синхронизация меню с биндами + исправленное включение/выключение ESP
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -260,6 +260,25 @@ function InitializeBinds()
                 ShowNotification("ESP: " .. (ESP.Enabled and "ON" or "OFF"), 
                                ESP.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
                 UpdateMenuButtons()
+                
+                if not ESP.Enabled then
+                    -- Очищаем все рисунки ESP
+                    for player, drawing in pairs(drawings) do
+                        ClearPlayerESP(player)
+                    end
+                    drawings = {}
+                    
+                    -- Останавливаем цикл обновления ESP
+                    if espUpdateConnection then
+                        espUpdateConnection:Disconnect()
+                        espUpdateConnection = nil
+                    end
+                else
+                    -- Запускаем цикл обновления ESP
+                    if not espUpdateConnection then
+                        StartESPUpdateLoop()
+                    end
+                end
             end, 
             name = "Toggle ESP"
         },
@@ -734,7 +753,7 @@ Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v13"
+Title.Text = "COLIN'S SCRIPT v13.1 - ESP FIXED"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -769,8 +788,16 @@ menuElements.ESPToggle.MouseButton1Click:Connect(function()
         for player in pairs(drawings) do
             ClearPlayerESP(player)
         end
+        drawings = {}
+        
+        if espUpdateConnection then
+            espUpdateConnection:Disconnect()
+            espUpdateConnection = nil
+        end
     else
-        StartESPUpdateLoop()
+        if not espUpdateConnection then
+            StartESPUpdateLoop()
+        end
     end
 end)
 
@@ -988,7 +1015,7 @@ BindList3.TextXAlignment = Enum.TextXAlignment.Left
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
-StatusLabel.Text = "PROPORTIONAL ESP: ACTIVE"
+StatusLabel.Text = "ESP TOGGLE FIXED - F1 TO ENABLE/DISABLE"
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
 StatusLabel.Position = UDim2.new(0.05, 0, 0.94, 0)
 StatusLabel.BackgroundTransparency = 1
