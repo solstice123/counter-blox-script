@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8.4 - PRO BOX ESP + EXTERNAL VERTICAL HP BAR]
+-- SEMIRAX CHEAT [V8.5 - HP BAR & BOX ALIGNMENT FIX]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Зачистка старых версий
+-- Полная очистка перед запуском
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -17,11 +17,11 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 60,
+    Radius = 60, -- Стандартное значение
     MenuVisible = true
 }
 
-local ESP_Data = {}
+local ESP_Objects = {}
 
 -- Круг FOV
 local FOVCircle = Drawing.new("Circle")
@@ -30,8 +30,9 @@ FOVCircle.Color = Color3.new(1, 0, 0)
 FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
+-- ИНТЕРФЕЙС
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Pro_V8.4"
+ScreenGui.Name = "Semirax_Fix_V8.5"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 190, 0, 400) 
@@ -48,15 +49,6 @@ Title.Text = "SEMIRAX CHEAT"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
-
-local function ToggleMenu()
-    Flags.MenuVisible = not Flags.MenuVisible
-    Main.Visible = Flags.MenuVisible
-end
-
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.Insert then ToggleMenu() end
-end)
 
 local function CreateToggle(name, flag, y)
     local btn = Instance.new("TextButton", Main)
@@ -79,6 +71,7 @@ CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
+-- Регулятор FOV
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
 FOVLabel.Position = UDim2.new(0, 0, 0, 245)
@@ -101,41 +94,43 @@ end
 CreateAdj("-", 0.05, -10)
 CreateAdj("+", 0.55, 10)
 
+-- Закрытие
 local CloseBtn = Instance.new("TextButton", Main)
 CloseBtn.Size = UDim2.new(0.9, 0, 0, 35)
 CloseBtn.Position = UDim2.new(0.05, 0, 0, 355)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 CloseBtn.Text = "CLOSE (Insert to open)"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.MouseButton1Click:Connect(ToggleMenu)
+CloseBtn.MouseButton1Click:Connect(function() Flags.MenuVisible = false Main.Visible = false end)
 
-local function CreateESP(p)
-    local data = {
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
+        Flags.MenuVisible = not Flags.MenuVisible
+        Main.Visible = Flags.MenuVisible
+    end
+end)
+
+-- ЛОГИКА ESP
+local function AddESP(p)
+    local objects = {
         Box = Drawing.new("Square"),
-        BarBack = Drawing.new("Line"),
-        Bar = Drawing.new("Line"),
-        Tag = Drawing.new("Text")
+        BarBack = Drawing.new("Square"),
+        Bar = Drawing.new("Square"),
+        Text = Drawing.new("Text")
     }
-    data.Box.Thickness = 1
-    data.Box.Color = Color3.new(1, 1, 1)
-    data.Box.Filled = false
-    
-    data.BarBack.Thickness = 3
-    data.BarBack.Color = Color3.new(0, 0, 0)
-    
-    data.Bar.Thickness = 1
-    data.Bar.Color = Color3.new(0, 1, 0)
-    
-    data.Tag.Center = true
-    data.Tag.Outline = true
-    data.Tag.Size = 13
-    data.Tag.Color = Color3.new(1, 1, 1)
-    
-    ESP_Data[p] = data
+    objects.Box.Thickness = 1
+    objects.Box.Filled = false
+    objects.BarBack.Filled = true
+    objects.BarBack.Color = Color3.new(0, 0, 0)
+    objects.Bar.Filled = true
+    objects.Text.Size = 13
+    objects.Text.Outline = true
+    objects.Text.Center = true
+    ESP_Objects[p] = objects
 end
 
-for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p) end end
-Players.PlayerAdded:Connect(CreateESP)
+Players.PlayerAdded:Connect(AddESP)
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
@@ -145,61 +140,61 @@ RunService.RenderStepped:Connect(function()
     local MinDist = Flags.Radius
 
     for _, p in pairs(Players:GetPlayers()) do
-        local data = ESP_Data[p]
+        local obj = ESP_Objects[p]
         local char = p.Character
         local hum = char and char:FindFirstChild("Humanoid")
         local root = char and char:FindFirstChild("HumanoidRootPart")
 
-        if p ~= LocalPlayer and char and hum and root and hum.Health > 0 then
-            local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
+        if char and hum and root and hum.Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-            
+            local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
+
             if onScreen and Flags.ESP and isEnemy then
-                -- Расчет пропорционального прямоугольника
-                local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
-                local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                local h = math.abs(headPos.Y - legPos.Y)
+                -- Расчет размеров
+                local head = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
+                local leg = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                local h = math.abs(head.Y - leg.Y)
                 local w = h / 2
                 
-                -- Рисуем BOX
-                data.Box.Size = Vector2.new(w, h)
-                data.Box.Position = Vector2.new(pos.X - w / 2, pos.Y - h / 2)
-                data.Box.Visible = true
-                
-                -- Рисуем HP BAR (Снаружи слева)
-                local barX = pos.X - w / 2 - 5
-                local hpPct = hum.Health / hum.MaxHealth
-                
-                data.BarBack.From = Vector2.new(barX, pos.Y + h / 2)
-                data.BarBack.To = Vector2.new(barX, pos.Y - h / 2)
-                data.BarBack.Visible = true
-                
-                data.Bar.From = Vector2.new(barX, pos.Y + h / 2)
-                data.Bar.To = Vector2.new(barX, pos.Y + h / 2 - (h * hpPct))
-                data.Bar.Color = Color3.fromHSV(hpPct * 0.3, 1, 1)
-                data.Bar.Visible = true
-                
-                -- Текст (Имя и предмет)
+                -- Box
+                obj.Box.Size = Vector2.new(w, h)
+                obj.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
+                obj.Box.Visible = true
+
+                -- HP Bar (Внешний слева)
+                local barW = 2
+                local barX = pos.X - w/2 - 5
+                obj.BarBack.Size = Vector2.new(barW + 2, h)
+                obj.BarBack.Position = Vector2.new(barX - 1, pos.Y - h/2)
+                obj.BarBack.Visible = true
+
+                local hpHeight = (hum.Health / hum.MaxHealth) * h
+                obj.Bar.Size = Vector2.new(barW, hpHeight)
+                obj.Bar.Position = Vector2.new(barX, (pos.Y + h/2) - hpHeight)
+                obj.Bar.Color = Color3.fromHSV((hum.Health/hum.MaxHealth) * 0.3, 1, 1)
+                obj.Bar.Visible = true
+
+                -- Текст
                 local tool = char:FindFirstChildOfClass("Tool")
-                data.Tag.Position = Vector2.new(pos.X, pos.Y - h / 2 - 20)
-                data.Tag.Text = string.format("%s | %s", p.Name, tool and tool.Name or "Hands")
-                data.Tag.Visible = true
+                obj.Text.Text = string.format("%s\n[%s]", p.Name, tool and tool.Name or "None")
+                obj.Text.Position = Vector2.new(pos.X, pos.Y - h/2 - 30)
+                obj.Text.Visible = true
             else
-                data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
+                obj.Box.Visible = false; obj.Bar.Visible = false; obj.BarBack.Visible = false; obj.Text.Visible = false
             end
 
-            -- Wallhack и Aimbot
-            if Flags.Wallhack and isEnemy and hum.Health > 0 then
+            -- Wallhack & Aim
+            if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
 
-            if Flags.Aimbot and isEnemy and onScreen and hum.Health > 0 then
+            if Flags.Aimbot and isEnemy and onScreen then
                 local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
                 if d < MinDist then MinDist = d BestTarget = char.Head end
             end
-        elseif data then
-            data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
+        elseif obj then
+            obj.Box.Visible = false; obj.Bar.Visible = false; obj.BarBack.Visible = false; obj.Text.Visible = false
         end
     end
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
