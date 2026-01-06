@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [ULTIMATE VISUAL FIXED + FOV ADJ]
+-- SEMIRAX CHEAT [ULTIMATE VISUAL FIXED + FOV ADJ + NAMETAGS]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -20,6 +20,9 @@ local Flags = {
     Radius = 20 
 }
 
+-- Таблица для хранения текстовых объектов ESP
+local NameTags = {}
+
 -- Визуал круга FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
@@ -28,17 +31,16 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Final_V6"
+ScreenGui.Name = "Semirax_Final_V7"
 ScreenGui.DisplayOrder = 999999
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 190, 0, 330) 
-Main.Position = UDim2.new(0, 10, 0, 10) -- Жестко в левый верхний угол
+Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
 Main.BorderColor3 = Color3.fromRGB(200, 0, 0)
 
--- Заголовок с новым названием
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(45, 0, 0)
@@ -80,14 +82,12 @@ local function CreateToggle(name, flag, y)
     end)
 end
 
--- Кнопки управления
 CreateToggle("RAGE AIM", "Aimbot", 40)
 CreateToggle("BOX ESP", "ESP", 80)
 CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
--- РЕГУЛИРОВЩИК FOV (Явно видимый)
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
 FOVLabel.Position = UDim2.new(0, 0, 0, 245)
@@ -114,7 +114,21 @@ end
 CreateAdj("-", 0.05, -10)
 CreateAdj("+", 0.55, 10)
 
--- Основной цикл
+-- Функция создания текста для ESP
+local function CreateTag(player)
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Center = true
+    text.Outline = true
+    text.Font = 2
+    text.Size = 13
+    text.Color = Color3.new(1, 1, 1)
+    NameTags[player] = text
+end
+
+Players.PlayerAdded:Connect(CreateTag)
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTag(p) end end
+
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
@@ -123,22 +137,39 @@ RunService.RenderStepped:Connect(function()
     local MousePos = UserInputService:GetMouseLocation()
 
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team) then
-            local char = p.Character
-            if char and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
-                if Flags.Wallhack then
-                    local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
-                    hl.Name = "SemiraxHL"
-                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                end
-                if Flags.Aimbot then
-                    local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
-                    if onScreen then
-                        local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
-                        if d < MinDist then MinDist = d BestTarget = char.Head end
-                    end
-                end
+        local char = p.Character
+        local tag = NameTags[p]
+        
+        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+            local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
+            local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
+            
+            -- Логика Nametags (ESP)
+            if onScreen and Flags.ESP and isEnemy then
+                if not tag then CreateTag(p) tag = NameTags[p] end
+                tag.Position = Vector2.new(pos.X, pos.Y - 25)
+                tag.Text = p.DisplayName or p.Name
+                tag.Visible = true
+            elseif tag then
+                tag.Visible = false
             end
+
+            -- Wallhack
+            if Flags.Wallhack and isEnemy then
+                local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
+                hl.Name = "SemiraxHL"
+                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            elseif char:FindFirstChild("SemiraxHL") then 
+                char.SemiraxHL:Destroy() 
+            end
+
+            -- Aimbot
+            if Flags.Aimbot and isEnemy and onScreen then
+                local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+                if d < MinDist then MinDist = d BestTarget = char.Head end
+            end
+        elseif tag then
+            tag.Visible = false
         end
     end
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
