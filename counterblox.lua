@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v11 - ULTRA PRECISION AIMBOT
--- Абсолютная точность при любом движении + Skeleton ESP
+-- Counter-Blox Script by Colin v12 - PROPORTIONAL ESP & NOTIFICATIONS
+-- Пропорциональный ESP + уведомления о биндах
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -21,25 +21,90 @@ local ESP = {
     BoneColor = Color3.fromRGB(255, 255, 255)
 }
 
--- ФИКСИРОВАННЫЕ НАСТРОЙКИ АИМБОТА (максимальная точность)
+-- ФИКСИРОВАННЫЕ НАСТРОЙКИ АИМБОТА
 local Aimbot = {
     Enabled = false,
-    FOV = 180, -- Максимальный обзор
-    Smoothing = 0.001, -- Практически мгновенная реакция
+    FOV = 180,
+    Smoothing = 0.001,
     TargetPart = "Head",
-    Prediction = 0.145, -- Оптимальное значение для точности
+    Prediction = 0.145,
     AutoPrediction = true,
-    PerfectTracking = true -- Всегда точно в центре головы
+    PerfectTracking = true
 }
 
 local Menu = {Open = true}
 
+-- СИСТЕМА УВЕДОМЛЕНИЙ
+local Notifications = {
+    Active = {},
+    Duration = 2
+}
+
+local function ShowNotification(text, color)
+    table.insert(Notifications.Active, {
+        Text = text,
+        Color = color or Color3.fromRGB(255, 255, 255),
+        Time = tick(),
+        Y = 50 + (#Notifications.Active * 25)
+    })
+end
+
 -- СИСТЕМА БИНДОВ
 local Binds = {
-    ["f1"] = {type = "toggle", func = function() ESP.Enabled = not ESP.Enabled end, name = "Toggle ESP"},
-    ["f2"] = {type = "toggle", func = function() Aimbot.Enabled = not Aimbot.Enabled end, name = "Toggle Aimbot"},
-    ["f3"] = {type = "toggle", func = function() ESP.Skeleton = not ESP.Skeleton end, name = "Toggle Skeleton"},
-    ["insert"] = {type = "toggle", func = function() Menu.Open = not Menu.Open end, name = "Toggle Menu"}
+    ["f1"] = {
+        type = "toggle", 
+        func = function() 
+            ESP.Enabled = not ESP.Enabled 
+            ShowNotification("ESP: " .. (ESP.Enabled and "ON" or "OFF"), 
+                           ESP.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        end, 
+        name = "Toggle ESP"
+    },
+    ["f2"] = {
+        type = "toggle", 
+        func = function() 
+            Aimbot.Enabled = not Aimbot.Enabled 
+            ShowNotification("Aimbot: " .. (Aimbot.Enabled and "ON" or "OFF"), 
+                           Aimbot.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+        end, 
+        name = "Toggle Aimbot"
+    },
+    ["f3"] = {
+        type = "toggle", 
+        func = function() 
+            ESP.Skeleton = not ESP.Skeleton 
+            ShowNotification("Skeleton ESP: " .. (ESP.Skeleton and "ON" or "OFF"), 
+                           ESP.Skeleton and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 100, 100))
+        end, 
+        name = "Toggle Skeleton"
+    },
+    ["f4"] = {
+        type = "toggle", 
+        func = function() 
+            ESP.Box = not ESP.Box 
+            ShowNotification("Box ESP: " .. (ESP.Box and "ON" or "OFF"), 
+                           ESP.Box and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(200, 100, 100))
+        end, 
+        name = "Toggle Box"
+    },
+    ["f5"] = {
+        type = "toggle", 
+        func = function() 
+            ESP.HeadDot = not ESP.HeadDot 
+            ShowNotification("Head Dot: " .. (ESP.HeadDot and "ON" or "OFF"), 
+                           ESP.HeadDot and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(100, 100, 100))
+        end, 
+        name = "Toggle Head Dot"
+    },
+    ["insert"] = {
+        type = "toggle", 
+        func = function() 
+            Menu.Open = not Menu.Open 
+            ShowNotification("Menu: " .. (Menu.Open and "SHOWN" or "HIDDEN"), 
+                           Menu.Open and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 100, 100))
+        end, 
+        name = "Toggle Menu"
+    }
 }
 
 local Modifiers = {
@@ -72,6 +137,58 @@ local BONE_CONNECTIONS = {
     {"LeftUpperLeg", "LeftLowerLeg"},
     {"LeftLowerLeg", "LeftFoot"}
 }
+
+-- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАСЧЕТА РАЗМЕРА
+function CalculateProportionalSize(character, rootPos)
+    if not character then return Vector2.new(60, 100) end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local head = character:FindFirstChild("Head")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not head or not rootPart then 
+        return Vector2.new(60, 100) 
+    end
+    
+    local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
+    local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+    
+    if not headOnScreen or not rootOnScreen then
+        return Vector2.new(60, 100)
+    end
+    
+    -- Рассчитываем пропорциональную высоту на основе расстояния
+    local distance = (head.Position - Camera.CFrame.Position).Magnitude
+    local scale = 1000 / distance
+    
+    -- Берем фактические размеры персонажа
+    local characterHeight = 5 -- Примерная высота персонажа в studs
+    local characterWidth = 2 -- Примерная ширина
+    
+    -- Пропорциональные размеры
+    local proportionalHeight = characterHeight * scale
+    local proportionalWidth = characterWidth * scale
+    
+    return Vector2.new(proportionalWidth * 0.8, proportionalHeight * 0.9)
+end
+
+-- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАДИУСА ГОЛОВЫ
+function CalculateHeadRadius(head)
+    if not head then return 4 end
+    
+    local headPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+    if not onScreen then return 4 end
+    
+    local distance = (head.Position - Camera.CFrame.Position).Magnitude
+    local scale = 800 / distance
+    
+    -- Размер головы в studs * масштаб
+    local headSize = head.Size.X
+    local radius = headSize * scale
+    
+    -- Ограничиваем размер
+    return math.clamp(radius, 3, 8)
+end
 
 -- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА КОМАНДЫ
 function GetTeamColor(player)
@@ -125,7 +242,6 @@ function CreatePlayerESP(player)
     d.TeamText.Outline = true
     d.HeadDot.Thickness = 2
     d.HeadDot.Filled = false
-    d.HeadDot.Radius = 4
     
     for _, bonePair in ipairs(BONE_CONNECTIONS) do
         local bone = Drawing.new("Line")
@@ -258,8 +374,67 @@ function CalculatePerfectPrediction(player, headPos)
     return headPos + (velocity * Aimbot.Prediction)
 end
 
+-- ОТРИСОВКА УВЕДОМЛЕНИЙ
+local notificationDrawings = {}
+local function UpdateNotifications()
+    local currentTime = tick()
+    
+    -- Удаляем старые уведомления
+    for i = #Notifications.Active, 1, -1 do
+        local notif = Notifications.Active[i]
+        if currentTime - notif.Time > Notifications.Duration then
+            table.remove(Notifications.Active, i)
+        end
+    end
+    
+    -- Создаем или обновляем отрисовки
+    for i, notif in ipairs(Notifications.Active) do
+        if not notificationDrawings[i] then
+            notificationDrawings[i] = {
+                Text = Drawing.new("Text"),
+                Background = Drawing.new("Square")
+            }
+            
+            local d = notificationDrawings[i]
+            d.Text.Size = 16
+            d.Text.Outline = true
+            d.Text.Font = Drawing.Fonts.Monospace
+            d.Background.Filled = true
+            d.Background.Transparency = 0.5
+            d.Background.Color = Color3.fromRGB(0, 0, 0)
+        end
+        
+        local d = notificationDrawings[i]
+        local yPos = 50 + (i * 25)
+        
+        d.Text.Text = notif.Text
+        d.Text.Color = notif.Color
+        d.Text.Position = Vector2.new(20, yPos)
+        d.Text.Visible = true
+        
+        local textWidth = #notif.Text * 9
+        d.Background.Size = Vector2.new(textWidth + 10, 20)
+        d.Background.Position = Vector2.new(15, yPos - 2)
+        d.Background.Visible = true
+        
+        notif.Y = yPos
+    end
+    
+    -- Скрываем неиспользуемые отрисовки
+    for i = #Notifications.Active + 1, #notificationDrawings do
+        if notificationDrawings[i] then
+            notificationDrawings[i].Text.Visible = false
+            notificationDrawings[i].Background.Visible = false
+        end
+    end
+end
+
 -- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ ESP
 RunService.RenderStepped:Connect(function()
+    -- Обновляем уведомления
+    UpdateNotifications()
+    
+    -- Обновляем ESP
     for player, drawing in pairs(drawings) do
         local character = player.Character
         local humanoid = character and character:FindFirstChild("Humanoid")
@@ -279,8 +454,8 @@ RunService.RenderStepped:Connect(function()
                 local teamColor = GetTeamColor(player)
                 local teamName = player.Team and player.Team.Name or "No Team"
                 
-                local scale = 1000 / position.Z
-                local boxSize = Vector2.new(scale * 2.2, scale * 3.5)
+                -- Пропорциональный расчет размера бокса
+                local boxSize = CalculateProportionalSize(character, position)
                 local boxPos = Vector2.new(position.X - boxSize.X / 2, position.Y - boxSize.Y / 2)
                 
                 if ESP.Box and ESP.Enabled then
@@ -292,7 +467,10 @@ RunService.RenderStepped:Connect(function()
                     drawing.Box.Visible = false
                 end
                 
+                -- Пропорциональный расчет радиуса головы
                 if ESP.HeadDot and ESP.Enabled then
+                    local headRadius = CalculateHeadRadius(head)
+                    drawing.HeadDot.Radius = headRadius
                     drawing.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
                     drawing.HeadDot.Color = teamColor
                     drawing.HeadDot.Visible = true
@@ -408,7 +586,7 @@ function GetClosestPlayerToMouse()
     return closestPlayer, bestTargetPos
 end
 
--- ОСНОВНОЙ ЦИКЛ АИМБОТА С АБСОЛЮТНОЙ ТОЧНОСТЬЮ
+-- ОСНОВНОЙ ЦИКЛ АИМБОТА
 RunService.RenderStepped:Connect(function()
     if Aimbot.Enabled then
         local targetPlayer, perfectPosition = GetClosestPlayerToMouse()
@@ -497,20 +675,21 @@ local TeamToggle = Instance.new("TextButton")
 local BindTitle = Instance.new("TextLabel")
 local BindList1 = Instance.new("TextLabel")
 local BindList2 = Instance.new("TextLabel")
+local BindList3 = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV11"
+ScreenGui.Name = "ColinMenuV12"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 320, 0, 380)
+Frame.Size = UDim2.new(0, 320, 0, 400)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v11"
+Title.Text = "COLIN'S SCRIPT v12"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -537,6 +716,8 @@ ESPToggle.MouseButton1Click:Connect(function()
     ESP.Enabled = not ESP.Enabled
     ESPToggle.Text = "ESP: " .. (ESP.Enabled and "ON (F1)" or "OFF (F1)")
     ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+    ShowNotification("ESP: " .. (ESP.Enabled and "ON" or "OFF"), 
+                    ESP.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
     
     if not ESP.Enabled then
         for player in pairs(drawings) do
@@ -558,10 +739,12 @@ SkeletonToggle.MouseButton1Click:Connect(function()
     ESP.Skeleton = not ESP.Skeleton
     SkeletonToggle.Text = "Skeleton ESP: " .. (ESP.Skeleton and "ON (F3)" or "OFF (F3)")
     SkeletonToggle.BackgroundColor3 = ESP.Skeleton and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+    ShowNotification("Skeleton ESP: " .. (ESP.Skeleton and "ON" or "OFF"), 
+                    ESP.Skeleton and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 100, 100))
 end)
 
 BoxToggle.Parent = Frame
-BoxToggle.Text = "Box ESP: ON"
+BoxToggle.Text = "Box ESP: ON (F4)"
 BoxToggle.Size = UDim2.new(0.9, 0, 0, 24)
 BoxToggle.Position = UDim2.new(0.05, 0, 0.31, 0)
 BoxToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
@@ -569,12 +752,14 @@ BoxToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 BoxToggle.Font = Enum.Font.SourceSans
 BoxToggle.MouseButton1Click:Connect(function()
     ESP.Box = not ESP.Box
-    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON" or "OFF")
+    BoxToggle.Text = "Box ESP: " .. (ESP.Box and "ON (F4)" or "OFF (F4)")
     BoxToggle.BackgroundColor3 = ESP.Box and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+    ShowNotification("Box ESP: " .. (ESP.Box and "ON" or "OFF"), 
+                    ESP.Box and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(200, 100, 100))
 end)
 
 HeadToggle.Parent = Frame
-HeadToggle.Text = "Head Dot: ON"
+HeadToggle.Text = "Head Dot: ON (F5)"
 HeadToggle.Size = UDim2.new(0.9, 0, 0, 24)
 HeadToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
 HeadToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
@@ -582,8 +767,10 @@ HeadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HeadToggle.Font = Enum.Font.SourceSans
 HeadToggle.MouseButton1Click:Connect(function()
     ESP.HeadDot = not ESP.HeadDot
-    HeadToggle.Text = "Head Dot: " .. (ESP.HeadDot and "ON" or "OFF")
+    HeadToggle.Text = "Head Dot: " .. (ESP.HeadDot and "ON (F5)" or "OFF (F5)")
     HeadToggle.BackgroundColor3 = ESP.HeadDot and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
+    ShowNotification("Head Dot: " .. (ESP.HeadDot and "ON" or "OFF"), 
+                    ESP.HeadDot and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(100, 100, 100))
 end)
 
 HealthToggle.Parent = Frame
@@ -633,6 +820,8 @@ AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
     AimbotToggle.Text = "ULTRA AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+    ShowNotification("Aimbot: " .. (Aimbot.Enabled and "ON" or "OFF"), 
+                    Aimbot.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
 end)
 
 BindTitle = Instance.new("TextLabel")
@@ -657,7 +846,7 @@ BindList1.TextXAlignment = Enum.TextXAlignment.Left
 
 BindList2 = Instance.new("TextLabel")
 BindList2.Parent = Frame
-BindList2.Text = "INSERT: Menu"
+BindList2.Text = "F4: Box | F5: Head Dot"
 BindList2.Size = UDim2.new(0.9, 0, 0, 18)
 BindList2.Position = UDim2.new(0.05, 0, 0.80, 0)
 BindList2.BackgroundTransparency = 1
@@ -665,11 +854,21 @@ BindList2.TextColor3 = Color3.fromRGB(200, 200, 200)
 BindList2.Font = Enum.Font.SourceSans
 BindList2.TextXAlignment = Enum.TextXAlignment.Left
 
+BindList3 = Instance.new("TextLabel")
+BindList3.Parent = Frame
+BindList3.Text = "INSERT: Toggle Menu"
+BindList3.Size = UDim2.new(0.9, 0, 0, 18)
+BindList3.Position = UDim2.new(0.05, 0, 0.85, 0)
+BindList3.BackgroundTransparency = 1
+BindList3.TextColor3 = Color3.fromRGB(200, 200, 200)
+BindList3.Font = Enum.Font.SourceSans
+BindList3.TextXAlignment = Enum.TextXAlignment.Left
+
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
-StatusLabel.Text = "Aimbot: Perfect Tracking Active"
+StatusLabel.Text = "PROPORTIONAL ESP: ACTIVE"
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
-StatusLabel.Position = UDim2.new(0.05, 0, 0.87, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.92, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 StatusLabel.Font = Enum.Font.SourceSansBold
