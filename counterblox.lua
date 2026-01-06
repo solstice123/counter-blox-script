@@ -17,7 +17,7 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 60 -- УМЕНЬШЕННЫЙ РАДИУС
+    Radius = 40 -- УМЕНЬШЕННЫЙ РАДИУС
 }
 
 -- Визуал круга
