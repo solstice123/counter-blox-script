@@ -1,5 +1,6 @@
 -- Counter-Blox Script by Colin v9 - ABSOLUTE MATHEMATICAL PERFECTION
 -- Математически идеальный аимбот с нейронной сетью предсказаний
+-- С МЕНЮШКОЙ ДЛЯ УПРАВЛЕНИЯ
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -29,6 +30,8 @@ local Aimbot = {
     SubPixelPrecision = true, -- Субпиксельная точность
     PredictiveMathematics = true, -- Предсказательная математика
 }
+
+local Menu = {Open = true}
 
 -- Математические константы для абсолютной точности
 local MATH_CONSTANTS = {
@@ -121,9 +124,14 @@ function QuantumLockTarget(targetPlayer, targetPos)
     QuantumState.PhaseShift = QuantumState.PhaseShift + (phase * QuantumState.LockStrength)
     
     -- Корректируем позицию с учетом квантовых эффектов
-    local lockedPos = targetPos + (headCFrame.RightVector * QuantumState.PhaseShift)
+    local head = targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head")
+    if head then
+        local headCFrame = head.CFrame
+        local lockedPos = targetPos + (headCFrame.RightVector * QuantumState.PhaseShift)
+        return lockedPos
+    end
     
-    return lockedPos
+    return targetPos
 end
 
 -- Нейронное предсказание движения
@@ -515,29 +523,75 @@ function AutoCalibratePrecision()
     print("========================================")
 end
 
--- ЗАПУСК СИСТЕМЫ
-spawn(function()
-    wait(2) -- Ждем загрузки
-    AutoCalibratePrecision()
+-- МЕНЮШКА ДЛЯ УПРАВЛЕНИЯ (ВЕРНУЛ КАК В РАННИХ ВЕРСИЯХ)
+local ScreenGui = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local ESPToggle = Instance.new("TextButton")
+local AimbotToggle = Instance.new("TextButton")
+local Title = Instance.new("TextLabel")
+
+ScreenGui.Parent = game.CoreGui
+ScreenGui.Name = "ColinMenuV9"
+ScreenGui.ResetOnSpawn = false
+
+Frame.Parent = ScreenGui
+Frame.Size = UDim2.new(0, 220, 0, 160)
+Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Frame.Active = true
+Frame.Draggable = true
+
+Title.Parent = Frame
+Title.Text = "Colin's Quantum Aim v9"
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+
+ESPToggle.Parent = Frame
+ESPToggle.Text = "QUANTUM ESP: ON"
+ESPToggle.Size = UDim2.new(0.9, 0, 0, 35)
+ESPToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+ESPToggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ESPToggle.Font = Enum.Font.SourceSans
+ESPToggle.MouseButton1Click:Connect(function()
+    ESP.Enabled = not ESP.Enabled
+    ESPToggle.Text = "QUANTUM ESP: " .. (ESP.Enabled and "ON" or "OFF")
+    ESPToggle.BackgroundColor3 = ESP.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
     
-    print("")
-    print("СИСТЕМА АКТИВИРОВАНА:")
-    print("• Квантовая блокировка: " .. (Aimbot.QuantumLock and "АКТИВНА" or "ВЫКЛ"))
-    print("• Нейронное предсказание: " .. (Aimbot.NeuralPrediction and "АКТИВНО" or "ВЫКЛ"))
-    print("• Субпиксельная точность: " .. (Aimbot.SubPixelPrecision and "АКТИВНА" or "ВЫКЛ"))
-    print("• Идеальная интерполяция: " .. (Aimbot.PerfectInterpolation and "АКТИВНА" or "ВЫКЛ"))
-    print("• Антиджиттер система: " .. (Aimbot.AntiJitter and "АКТИВНА" or "ВЫКЛ"))
-    print("")
-    print("ГОРЯЧИЕ КЛАВИШИ:")
-    print("INSERT - Меню")
-    print("F10 - Автокалибровка")
-    print("F11 - Диагностика точности")
-    print("F12 - Переключение режимов")
-    print("")
+    -- Очищаем ESP если выключаем
+    if not ESP.Enabled then
+        for player in pairs(drawings) do
+            if drawings[player].Box then drawings[player].Box:Remove() end
+            if drawings[player].Name then drawings[player].Name:Remove() end
+            if drawings[player].Health then drawings[player].Health:Remove() end
+            if drawings[player].AccuracyDot then drawings[player].AccuracyDot:Remove() end
+            if drawings[player].PredictionLine then drawings[player].PredictionLine:Remove() end
+        end
+        drawings = {}
+    end
 end)
 
--- Горячие клавиши
+AimbotToggle.Parent = Frame
+AimbotToggle.Text = "ABSOLUTE AIMBOT: OFF"
+AimbotToggle.Size = UDim2.new(0.9, 0, 0, 35)
+AimbotToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
+AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AimbotToggle.Font = Enum.Font.SourceSans
+AimbotToggle.MouseButton1Click:Connect(function()
+    Aimbot.Enabled = not Aimbot.Enabled
+    AimbotToggle.Text = "ABSOLUTE AIMBOT: " .. (Aimbot.Enabled and "ON" or "OFF")
+    AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+end)
+
+-- Переключение меню по клавише INSERT
 Mouse.KeyDown:Connect(function(key)
+    if key == "insert" then
+        Menu.Open = not Menu.Open
+        Frame.Visible = Menu.Open
+    end
     if key == "f10" then
         AutoCalibratePrecision()
     end
@@ -564,10 +618,31 @@ Mouse.KeyDown:Connect(function(key)
         print("Квантовая блокировка: " .. (Aimbot.QuantumLock and "ВКЛ" or "ВЫКЛ"))
         print("Нейронное предсказание: " .. (Aimbot.NeuralPrediction and "ВКЛ" or "ВЫКЛ"))
     end
-    if key == "insert" then
-        -- Здесь можно добавить меню, если нужно
-        print("Меню отключено для максимальной производительности")
-    end
+end)
+
+-- ЗАПУСК СИСТЕМЫ
+spawn(function()
+    wait(2) -- Ждем загрузки
+    AutoCalibratePrecision()
+    
+    print("")
+    print("СИСТЕМА АКТИВИРОВАНА:")
+    print("• Квантовая блокировка: " .. (Aimbot.QuantumLock and "АКТИВНА" or "ВЫКЛ"))
+    print("• Нейронное предсказание: " .. (Aimbot.NeuralPrediction and "АКТИВНО" or "ВЫКЛ"))
+    print("• Субпиксельная точность: " .. (Aimbot.SubPixelPrecision and "АКТИВНА" or "ВЫКЛ"))
+    print("• Идеальная интерполяция: " .. (Aimbot.PerfectInterpolation and "АКТИВНА" or "ВЫКЛ"))
+    print("• Антиджиттер система: " .. (Aimbot.AntiJitter and "АКТИВНА" or "ВЫКЛ"))
+    print("")
+    print("ГОРЯЧИЕ КЛАВИШИ:")
+    print("INSERT - Меню (включить/выключить менюшку)")
+    print("F10 - Автокалибровка")
+    print("F11 - Диагностика точности")
+    print("F12 - Переключение режимов")
+    print("")
+    print("МЕНЮШКА ВОЗВРАЩЕНА!")
+    print("Используй INSERT чтобы показать/скрыть меню")
+    print("Кнопки ESP и AIMBOT работают как в старых версиях")
+    print("")
 end)
 
 print("")
@@ -582,4 +657,6 @@ print("║  • Математически идеальную интерполя
 print("║  • Адаптивную систему подавления джиттера               ║")
 print("║                                                          ║")
 print("║  Точность: 100.000000000000000000000000000000000000000%  ║")
+print("║                                                          ║")
+print("║  МЕНЮШКА ВОЗВРАЩЕНА! Используй INSERT для управления     ║")
 print("╚══════════════════════════════════════════════════════════╝")
