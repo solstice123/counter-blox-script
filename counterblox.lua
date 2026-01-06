@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V17 - FULL FUNCTIONAL + CENTER PRECISION]
+-- SEMIRAX CHEAT [V18 - TOTAL STABLE REBUILD]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Зачистка старых версий
+-- 1. ПОЛНАЯ ОЧИСТКА
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -19,7 +19,7 @@ local Flags = {
     NoSpread = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 60,
+    Radius = 60, -- Стандартный радиус
     MenuVisible = true
 }
 
@@ -30,8 +30,9 @@ FOVCircle.Color = Color3.new(1, 0, 0)
 FOVCircle.Transparency = 0.8
 FOVCircle.Visible = false
 
+-- 2. ИНТЕРФЕЙС (Версия со скриншотов)
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Ultimate_V17"
+ScreenGui.Name = "Semirax_Ultimate_V18"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 200, 0, 440) 
@@ -49,7 +50,6 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
--- Переключение (Insert)
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.Insert then
         Flags.MenuVisible = not Flags.MenuVisible
@@ -80,7 +80,7 @@ CreateToggle("NO SPREAD", "NoSpread", 180)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 215)
 CreateToggle("TEAM CHECK", "TeamCheck", 250)
 
--- Настройки FOV
+-- РЕГУЛИРОВКА FOV
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
 FOVLabel.Position = UDim2.new(0, 0, 0, 290)
@@ -103,18 +103,22 @@ end
 CreateAdj("-", 0.05, -5)
 CreateAdj("+", 0.55, 5)
 
--- ФУНКЦИОНАЛ ПЕРЕХВАТА ВЫСТРЕЛА (No Spread / No Recoil)
-local mt = getrawmetatable(game)
-local old = mt.__index
-setreadonly(mt, false)
-mt.__index = newcclosure(function(t, k)
-    if Flags.NoRecoil and (k == "Recoil" or k == "RecoilMin" or k == "RecoilMax") then return 0 end
-    if Flags.NoSpread and (k == "Spread" or k == "Accuracy" or k == "Inaccuracy") then return 0 end
-    return old(t, k)
+-- 3. ФИКС ТОЧНОСТИ (LASER MODE)
+RunService.Stepped:Connect(function()
+    if Flags.NoRecoil or Flags.NoSpread then
+        for _, v in pairs(LocalPlayer.Character:GetChildren()) do
+            if v:IsA("Tool") then
+                local cfg = v:FindFirstChild("Config") or v:FindFirstChild("Settings")
+                if cfg then
+                    if Flags.NoRecoil and cfg:FindFirstChild("Recoil") then cfg.Recoil.Value = 0 end
+                    if Flags.NoSpread and cfg:FindFirstChild("Spread") then cfg.Spread.Value = 0 end
+                end
+            end
+        end
+    end
 end)
-setreadonly(mt, true)
 
--- Цикл отрисовки и логики
+-- 4. ГЛАВНЫЙ ЦИКЛ (ESP, AIM, FOV)
 RunService.RenderStepped:Connect(function()
     local MousePos = UserInputService:GetMouseLocation()
     FOVCircle.Position = MousePos
@@ -131,7 +135,7 @@ RunService.RenderStepped:Connect(function()
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
             
-            -- ESP (Ники)
+            -- Никнеймы (ESP)
             if onScreen and Flags.ESP and isEnemy then
                 if not tag then 
                     tag = Drawing.new("Text") 
@@ -143,7 +147,7 @@ RunService.RenderStepped:Connect(function()
                 tag.Visible = true
             elseif tag then tag.Visible = false end
 
-            -- Wallhack (Highlight)
+            -- Wallhack
             if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.Name = "SemiraxHL"
@@ -157,6 +161,5 @@ RunService.RenderStepped:Connect(function()
             end
         elseif tag then tag.Visible = false end
     end
-    
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
 end)
