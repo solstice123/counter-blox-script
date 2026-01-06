@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v12 - PROPORTIONAL ESP & NOTIFICATIONS
--- Пропорциональный ESP + уведомления о биндах
+-- Counter-Blox Script by Colin - FIXED AIMBOT
+-- Исправленный аимбот с пропорциональным ESP
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -21,15 +21,14 @@ local ESP = {
     BoneColor = Color3.fromRGB(255, 255, 255)
 }
 
--- ФИКСИРОВАННЫЕ НАСТРОЙКИ АИМБОТА
+-- НАСТРОЙКИ АИМБОТА (ИСПРАВЛЕННЫЕ)
 local Aimbot = {
     Enabled = false,
-    FOV = 180,
-    Smoothing = 0.001,
+    FOV = 1000, -- Очень большой FOV чтобы всегда находить цель
+    Smoothing = 0.02, -- Оптимальное сглаживание
     TargetPart = "Head",
-    Prediction = 0.145,
-    AutoPrediction = true,
-    PerfectTracking = true
+    Prediction = 0.14,
+    AutoPrediction = true
 }
 
 local Menu = {Open = true}
@@ -87,15 +86,6 @@ local Binds = {
         end, 
         name = "Toggle Box"
     },
-    ["f5"] = {
-        type = "toggle", 
-        func = function() 
-            ESP.HeadDot = not ESP.HeadDot 
-            ShowNotification("Head Dot: " .. (ESP.HeadDot and "ON" or "OFF"), 
-                           ESP.HeadDot and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(100, 100, 100))
-        end, 
-        name = "Toggle Head Dot"
-    },
     ["insert"] = {
         type = "toggle", 
         func = function() 
@@ -117,7 +107,6 @@ local Modifiers = {
 local drawings = {}
 local playerData = {}
 local espUpdateConnection = nil
-local velocityHistory = {}
 
 -- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
 local BONE_CONNECTIONS = {
@@ -139,55 +128,16 @@ local BONE_CONNECTIONS = {
 }
 
 -- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАСЧЕТА РАЗМЕРА
-function CalculateProportionalSize(character, rootPos)
+function CalculateProportionalSize(character, distance)
     if not character then return Vector2.new(60, 100) end
     
-    local humanoid = character:FindFirstChild("Humanoid")
-    local head = character:FindFirstChild("Head")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local baseSize = 100
+    local scale = baseSize / math.max(distance, 1)
     
-    if not humanoid or not head or not rootPart then 
-        return Vector2.new(60, 100) 
-    end
+    local width = 60 * scale
+    local height = 100 * scale
     
-    local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
-    local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
-    
-    if not headOnScreen or not rootOnScreen then
-        return Vector2.new(60, 100)
-    end
-    
-    -- Рассчитываем пропорциональную высоту на основе расстояния
-    local distance = (head.Position - Camera.CFrame.Position).Magnitude
-    local scale = 1000 / distance
-    
-    -- Берем фактические размеры персонажа
-    local characterHeight = 5 -- Примерная высота персонажа в studs
-    local characterWidth = 2 -- Примерная ширина
-    
-    -- Пропорциональные размеры
-    local proportionalHeight = characterHeight * scale
-    local proportionalWidth = characterWidth * scale
-    
-    return Vector2.new(proportionalWidth * 0.8, proportionalHeight * 0.9)
-end
-
--- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАДИУСА ГОЛОВЫ
-function CalculateHeadRadius(head)
-    if not head then return 4 end
-    
-    local headPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-    if not onScreen then return 4 end
-    
-    local distance = (head.Position - Camera.CFrame.Position).Magnitude
-    local scale = 800 / distance
-    
-    -- Размер головы в studs * масштаб
-    local headSize = head.Size.X
-    local radius = headSize * scale
-    
-    -- Ограничиваем размер
-    return math.clamp(radius, 3, 8)
+    return Vector2.new(width, height)
 end
 
 -- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА КОМАНДЫ
@@ -242,6 +192,7 @@ function CreatePlayerESP(player)
     d.TeamText.Outline = true
     d.HeadDot.Thickness = 2
     d.HeadDot.Filled = false
+    d.HeadDot.Radius = 5
     
     for _, bonePair in ipairs(BONE_CONNECTIONS) do
         local bone = Drawing.new("Line")
@@ -294,85 +245,84 @@ local function StartESPUpdateLoop()
     end)
 end
 
--- ТОЧНОЕ ПОЛУЧЕНИЕ ЦЕНТРА ГОЛОВЫ
-function GetExactHeadCenter(head)
-    if not head then return Vector3.new(0,0,0) end
-    local headCFrame = head.CFrame
-    local headSize = head.Size
-    local forwardVector = headCFrame.LookVector
-    return headCFrame.Position + (forwardVector * (headSize.Z / 2))
+-- ИСПРАВЛЕННЫЙ АИМБОТ - ТОЧНО В ЦЕНТР ГОЛОВЫ ПРИ ЛЮБОМ ДВИЖЕНИИ
+function GetClosestPlayerToMouse()
+    local closestPlayer = nil
+    local shortestDistance = Aimbot.FOV
+    local bestTargetPos = nil
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if IsEnemy(player) and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local head = character:FindFirstChild("Head")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoid.Health > 0 and head and rootPart then
+                -- Получаем текущую позицию головы
+                local headPos = head.Position
+                
+                -- Добавляем предсказание движения
+                if Aimbot.AutoPrediction then
+                    local velocity = rootPart.Velocity
+                    local distance = (headPos - Camera.CFrame.Position).Magnitude
+                    
+                    -- Динамическое предсказание
+                    local dynamicPrediction = Aimbot.Prediction
+                    dynamicPrediction = dynamicPrediction + (velocity.Magnitude * 0.001)
+                    dynamicPrediction = dynamicPrediction * (distance / 100)
+                    dynamicPrediction = math.clamp(dynamicPrediction, 0.12, 0.18)
+                    
+                    -- Ключевое исправление: правильное предсказание движения
+                    -- Когда игрок движется влево (velocity.X отрицательный), нужно целиться левее
+                    -- Когда игрок движется вправо (velocity.X положительный), нужно целиться правее
+                    headPos = headPos + (velocity * dynamicPrediction)
+                end
+                
+                local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
+                
+                if onScreen then
+                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                    local distance = (mousePos - targetPos).Magnitude
+                    
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = player
+                        bestTargetPos = headPos
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer, bestTargetPos
 end
 
--- УЛУЧШЕННАЯ СИСТЕМА ПРЕДСКАЗАНИЯ ДВИЖЕНИЯ
-function CalculatePerfectPrediction(player, headPos)
-    if not Aimbot.AutoPrediction then return headPos end
-    
-    local character = player.Character
-    if not character then return headPos end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    local head = character:FindFirstChild("Head")
-    if not rootPart or not head then return headPos end
-    
-    local velocity = rootPart.Velocity
-    local currentTime = tick()
-    
-    if not velocityHistory[player] then
-        velocityHistory[player] = {}
-    end
-    
-    table.insert(velocityHistory[player], 1, {
-        velocity = velocity,
-        time = currentTime,
-        position = headPos
-    })
-    
-    if #velocityHistory[player] > 10 then
-        table.remove(velocityHistory[player], 11)
-    end
-    
-    if #velocityHistory[player] >= 3 then
-        local avgVelocity = Vector3.new(0,0,0)
-        local timeSpan = velocityHistory[player][1].time - velocityHistory[player][#velocityHistory[player]].time
+-- ОСНОВНОЙ ЦИКЛ АИМБОТА
+RunService.RenderStepped:Connect(function()
+    if Aimbot.Enabled then
+        local targetPlayer, targetPos = GetClosestPlayerToMouse()
         
-        for i = 1, #velocityHistory[player] do
-            avgVelocity = avgVelocity + velocityHistory[player][i].velocity
-        end
-        avgVelocity = avgVelocity / #velocityHistory[player]
-        
-        local acceleration = Vector3.new(0,0,0)
-        if timeSpan > 0 then
-            acceleration = (velocityHistory[player][1].velocity - velocityHistory[player][#velocityHistory[player]].velocity) / timeSpan
-        end
-        
-        local predictionTime = Aimbot.Prediction
-        local predictedPos = headPos + (avgVelocity * predictionTime) + (0.5 * acceleration * predictionTime * predictionTime)
-        
-        if Aimbot.PerfectTracking then
-            local cameraPos = Camera.CFrame.Position
-            local toTarget = predictedPos - cameraPos
-            local distance = toTarget.Magnitude
+        if targetPlayer and targetPos then
+            local currentCFrame = Camera.CFrame
+            local cameraPos = currentCFrame.Position
             
-            local microCorrection = Vector3.new(0,0,0)
-            if velocity.Magnitude > 0 then
-                local moveDirection = velocity.Unit
-                local cameraRight = Camera.CFrame.RightVector
-                local cameraUp = Camera.CFrame.UpVector
-                
-                local rightDot = moveDirection:Dot(cameraRight)
-                local upDot = moveDirection:Dot(cameraUp)
-                
-                microCorrection = (cameraRight * rightDot * 0.02) + (cameraUp * upDot * 0.02)
-            end
+            -- Рассчитываем направление к цели
+            local toTarget = targetPos - cameraPos
+            local targetDirection = toTarget.Unit
             
-            predictedPos = predictedPos + microCorrection
+            -- Получаем текущее направление камеры
+            local currentDirection = currentCFrame.LookVector
+            
+            -- Плавное наведение с оптимальным сглаживанием
+            local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
+            
+            -- Применяем новое направление
+            Camera.CFrame = CFrame.new(cameraPos, cameraPos + newDirection)
         end
-        
-        return predictedPos
     end
-    
-    return headPos + (velocity * Aimbot.Prediction)
-end
+end)
 
 -- ОТРИСОВКА УВЕДОМЛЕНИЙ
 local notificationDrawings = {}
@@ -444,9 +394,8 @@ RunService.RenderStepped:Connect(function()
         local visible = false
         
         if character and humanoid and humanoid.Health > 0 and rootPart and head then
-            local headCenter = GetExactHeadCenter(head)
             local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            local headPos, headOnScreen = Camera:WorldToViewportPoint(headCenter)
+            local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
             
             if onScreen and headOnScreen then
                 visible = true
@@ -455,7 +404,8 @@ RunService.RenderStepped:Connect(function()
                 local teamName = player.Team and player.Team.Name or "No Team"
                 
                 -- Пропорциональный расчет размера бокса
-                local boxSize = CalculateProportionalSize(character, position)
+                local distance = (head.Position - Camera.CFrame.Position).Magnitude
+                local boxSize = CalculateProportionalSize(character, distance)
                 local boxPos = Vector2.new(position.X - boxSize.X / 2, position.Y - boxSize.Y / 2)
                 
                 if ESP.Box and ESP.Enabled then
@@ -467,10 +417,8 @@ RunService.RenderStepped:Connect(function()
                     drawing.Box.Visible = false
                 end
                 
-                -- Пропорциональный расчет радиуса головы
+                -- Точка на голове
                 if ESP.HeadDot and ESP.Enabled then
-                    local headRadius = CalculateHeadRadius(head)
-                    drawing.HeadDot.Radius = headRadius
                     drawing.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
                     drawing.HeadDot.Color = teamColor
                     drawing.HeadDot.Visible = true
@@ -550,62 +498,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- УЛЬТРА-ТОЧНЫЙ АИМБОТ
-function GetClosestPlayerToMouse()
-    local closestPlayer = nil
-    local shortestDistance = Aimbot.FOV
-    local bestTargetPos = nil
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if IsEnemy(player) and player.Character then
-            local character = player.Character
-            local humanoid = character:FindFirstChild("Humanoid")
-            local head = character:FindFirstChild("Head")
-            
-            if humanoid and humanoid.Health > 0 and head then
-                local headCenter = GetExactHeadCenter(head)
-                local predictedPos = CalculatePerfectPrediction(player, headCenter)
-                
-                local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
-                
-                if onScreen then
-                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-                    local distance = (mousePos - targetPos).Magnitude
-                    
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestPlayer = player
-                        bestTargetPos = predictedPos
-                    end
-                end
-            end
-        end
-    end
-    
-    return closestPlayer, bestTargetPos
-end
-
--- ОСНОВНОЙ ЦИКЛ АИМБОТА
-RunService.RenderStepped:Connect(function()
-    if Aimbot.Enabled then
-        local targetPlayer, perfectPosition = GetClosestPlayerToMouse()
-        
-        if targetPlayer and perfectPosition then
-            local currentCFrame = Camera.CFrame
-            local cameraPosition = currentCFrame.Position
-            
-            local toTarget = perfectPosition - cameraPosition
-            local targetDirection = toTarget.Unit
-            
-            local currentDirection = currentCFrame.LookVector
-            local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
-            
-            Camera.CFrame = CFrame.new(cameraPosition, cameraPosition + newDirection)
-        end
-    end
-end)
-
 -- СИСТЕМА БИНДОВ
 local function GetBindKey(input)
     local key = input.KeyCode.Name:lower()
@@ -656,7 +548,6 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     ClearPlayerESP(player)
-    velocityHistory[player] = nil
 end)
 
 -- МЕНЮШКА
@@ -675,21 +566,20 @@ local TeamToggle = Instance.new("TextButton")
 local BindTitle = Instance.new("TextLabel")
 local BindList1 = Instance.new("TextLabel")
 local BindList2 = Instance.new("TextLabel")
-local BindList3 = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV12"
+ScreenGui.Name = "ColinMenuFixed"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 320, 0, 400)
+Frame.Size = UDim2.new(0, 320, 0, 380)
 Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v12"
+Title.Text = "COLIN'S SCRIPT (FIXED)"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -759,7 +649,7 @@ BoxToggle.MouseButton1Click:Connect(function()
 end)
 
 HeadToggle.Parent = Frame
-HeadToggle.Text = "Head Dot: ON (F5)"
+HeadToggle.Text = "Head Dot: ON"
 HeadToggle.Size = UDim2.new(0.9, 0, 0, 24)
 HeadToggle.Position = UDim2.new(0.05, 0, 0.37, 0)
 HeadToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
@@ -767,10 +657,8 @@ HeadToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 HeadToggle.Font = Enum.Font.SourceSans
 HeadToggle.MouseButton1Click:Connect(function()
     ESP.HeadDot = not ESP.HeadDot
-    HeadToggle.Text = "Head Dot: " .. (ESP.HeadDot and "ON (F5)" or "OFF (F5)")
+    HeadToggle.Text = "Head Dot: " .. (ESP.HeadDot and "ON" or "OFF")
     HeadToggle.BackgroundColor3 = ESP.HeadDot and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(80, 80, 120)
-    ShowNotification("Head Dot: " .. (ESP.HeadDot and "ON" or "OFF"), 
-                    ESP.HeadDot and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(100, 100, 100))
 end)
 
 HealthToggle.Parent = Frame
@@ -810,7 +698,7 @@ AimbotTitle.Font = Enum.Font.SourceSansBold
 AimbotTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 AimbotToggle.Parent = Frame
-AimbotToggle.Text = "ULTRA AIMBOT: OFF (F2)"
+AimbotToggle.Text = "AIMBOT: OFF (F2)"
 AimbotToggle.Size = UDim2.new(0.9, 0, 0, 28)
 AimbotToggle.Position = UDim2.new(0.05, 0, 0.62, 0)
 AimbotToggle.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
@@ -818,7 +706,7 @@ AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotToggle.Font = Enum.Font.SourceSans
 AimbotToggle.MouseButton1Click:Connect(function()
     Aimbot.Enabled = not Aimbot.Enabled
-    AimbotToggle.Text = "ULTRA AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
+    AimbotToggle.Text = "AIMBOT: " .. (Aimbot.Enabled and "ON (F2)" or "OFF (F2)")
     AimbotToggle.BackgroundColor3 = Aimbot.Enabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
     ShowNotification("Aimbot: " .. (Aimbot.Enabled and "ON" or "OFF"), 
                     Aimbot.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
@@ -846,7 +734,7 @@ BindList1.TextXAlignment = Enum.TextXAlignment.Left
 
 BindList2 = Instance.new("TextLabel")
 BindList2.Parent = Frame
-BindList2.Text = "F4: Box | F5: Head Dot"
+BindList2.Text = "F4: Box | INSERT: Menu"
 BindList2.Size = UDim2.new(0.9, 0, 0, 18)
 BindList2.Position = UDim2.new(0.05, 0, 0.80, 0)
 BindList2.BackgroundTransparency = 1
@@ -854,21 +742,11 @@ BindList2.TextColor3 = Color3.fromRGB(200, 200, 200)
 BindList2.Font = Enum.Font.SourceSans
 BindList2.TextXAlignment = Enum.TextXAlignment.Left
 
-BindList3 = Instance.new("TextLabel")
-BindList3.Parent = Frame
-BindList3.Text = "INSERT: Toggle Menu"
-BindList3.Size = UDim2.new(0.9, 0, 0, 18)
-BindList3.Position = UDim2.new(0.05, 0, 0.85, 0)
-BindList3.BackgroundTransparency = 1
-BindList3.TextColor3 = Color3.fromRGB(200, 200, 200)
-BindList3.Font = Enum.Font.SourceSans
-BindList3.TextXAlignment = Enum.TextXAlignment.Left
-
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
-StatusLabel.Text = "PROPORTIONAL ESP: ACTIVE"
+StatusLabel.Text = "AIMBOT: FIXED & WORKING"
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
-StatusLabel.Position = UDim2.new(0.05, 0, 0.92, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.87, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 StatusLabel.Font = Enum.Font.SourceSansBold
