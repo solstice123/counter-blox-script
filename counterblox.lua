@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V18 - TOTAL STABLE REBUILD]
+-- SEMIRAX CHEAT [V8 - INSERT TO HIDE + CLOSE BUTTON]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- 1. ПОЛНАЯ ОЧИСТКА
+-- Зачистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -15,51 +15,72 @@ local Flags = {
     Aimbot = true,
     ESP = true,
     Wallhack = true,
-    NoRecoil = true,
-    NoSpread = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 60, -- Стандартный радиус
+    Radius = 20,
     MenuVisible = true
 }
 
 local NameTags = {}
+
+-- Круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
 FOVCircle.Transparency = 0.8
-FOVCircle.Visible = false
+FOVCircle.Visible = Flags.FOV_Enabled
 
--- 2. ИНТЕРФЕЙС (Версия со скриншотов)
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Ultimate_V18"
+ScreenGui.Name = "Semirax_Final_V8"
+ScreenGui.DisplayOrder = 999999
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 200, 0, 440) 
-Main.Position = UDim2.new(0, 10, 0, 50)
+Main.Size = UDim2.new(0, 190, 0, 360) -- Увеличил под кнопку закрытия
+Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
 Main.BorderColor3 = Color3.fromRGB(200, 0, 0)
 Main.Visible = Flags.MenuVisible
 
 local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(45, 0, 0)
 Title.Text = "SEMIRAX CHEAT"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
+-- ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ВИДИМОСТИ
+local function ToggleMenu()
+    Flags.MenuVisible = not Flags.MenuVisible
+    Main.Visible = Flags.MenuVisible
+end
+
+-- КЛАВИША INSERT ДЛЯ СКРЫТИЯ
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.Insert then
-        Flags.MenuVisible = not Flags.MenuVisible
-        Main.Visible = Flags.MenuVisible
+        ToggleMenu()
     end
 end)
 
+-- ПЕРЕТАСКИВАНИЕ
+local dragging, dragStart, startPos
+Main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true dragStart = input.Position startPos = Main.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+
 local function CreateToggle(name, flag, y)
     local btn = Instance.new("TextButton", Main)
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
     btn.Position = UDim2.new(0.05, 0, 0, y)
     btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
     btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
@@ -69,21 +90,28 @@ local function CreateToggle(name, flag, y)
         Flags[flag] = not Flags[flag]
         btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
         btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+        if flag == "FOV_Enabled" then FOVCircle.Visible = Flags[flag] end
     end)
 end
 
 CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("BOX ESP", "ESP", 75)
-CreateToggle("WALLHACK", "Wallhack", 110)
-CreateToggle("NO RECOIL", "NoRecoil", 145)
-CreateToggle("NO SPREAD", "NoSpread", 180)
-CreateToggle("FOV CIRCLE", "FOV_Enabled", 215)
-CreateToggle("TEAM CHECK", "TeamCheck", 250)
+CreateToggle("BOX ESP", "ESP", 80)
+CreateToggle("WALLHACK", "Wallhack", 120)
+CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
+CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
--- РЕГУЛИРОВКА FOV
+-- КНОПКА ЗАКРЫТЬ (CLOSE)
+local CloseBtn = Instance.new("TextButton", Main)
+CloseBtn.Size = UDim2.new(0.9, 0, 0, 30)
+CloseBtn.Position = UDim2.new(0.05, 0, 0, 320)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+CloseBtn.Text = "CLOSE (Insert to open)"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.MouseButton1Click:Connect(ToggleMenu)
+
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
-FOVLabel.Position = UDim2.new(0, 0, 0, 290)
+FOVLabel.Position = UDim2.new(0, 0, 0, 245)
 FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
 FOVLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVLabel.BackgroundTransparency = 1
@@ -91,70 +119,60 @@ FOVLabel.BackgroundTransparency = 1
 local function CreateAdj(text, x, delta)
     local b = Instance.new("TextButton", Main)
     b.Size = UDim2.new(0.4, 0, 0, 35)
-    b.Position = UDim2.new(x, 0, 0, 320)
+    b.Position = UDim2.new(x, 0, 0, 275)
     b.Text = text
     b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     b.TextColor3 = Color3.new(1, 1, 1)
     b.MouseButton1Click:Connect(function()
-        Flags.Radius = math.clamp(Flags.Radius + delta, 1, 500)
+        Flags.Radius = math.clamp(Flags.Radius + delta, 10, 600)
         FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
     end)
 end
-CreateAdj("-", 0.05, -5)
-CreateAdj("+", 0.55, 5)
 
--- 3. ФИКС ТОЧНОСТИ (LASER MODE)
-RunService.Stepped:Connect(function()
-    if Flags.NoRecoil or Flags.NoSpread then
-        for _, v in pairs(LocalPlayer.Character:GetChildren()) do
-            if v:IsA("Tool") then
-                local cfg = v:FindFirstChild("Config") or v:FindFirstChild("Settings")
-                if cfg then
-                    if Flags.NoRecoil and cfg:FindFirstChild("Recoil") then cfg.Recoil.Value = 0 end
-                    if Flags.NoSpread and cfg:FindFirstChild("Spread") then cfg.Spread.Value = 0 end
-                end
-            end
-        end
-    end
-end)
+CreateAdj("-", 0.05, -10)
+CreateAdj("+", 0.55, 10)
 
--- 4. ГЛАВНЫЙ ЦИКЛ (ESP, AIM, FOV)
+local function CreateTag(player)
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Center = true
+    text.Outline = true
+    text.Font = 2
+    text.Size = 13
+    text.Color = Color3.new(1, 1, 1)
+    NameTags[player] = text
+end
+
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateTag(p) end end
+Players.PlayerAdded:Connect(CreateTag)
+
 RunService.RenderStepped:Connect(function()
-    local MousePos = UserInputService:GetMouseLocation()
-    FOVCircle.Position = MousePos
+    FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
-    FOVCircle.Visible = Flags.FOV_Enabled
-
     local BestTarget = nil
     local MinDist = Flags.Radius
+    local MousePos = UserInputService:GetMouseLocation()
 
     for _, p in pairs(Players:GetPlayers()) do
         local char = p.Character
         local tag = NameTags[p]
-        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
+        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
             
-            -- Никнеймы (ESP)
             if onScreen and Flags.ESP and isEnemy then
-                if not tag then 
-                    tag = Drawing.new("Text") 
-                    tag.Center = true tag.Outline = true tag.Size = 14 tag.Color = Color3.new(1,1,1)
-                    NameTags[p] = tag 
-                end
+                if not tag then CreateTag(p) tag = NameTags[p] end
                 tag.Position = Vector2.new(pos.X, pos.Y - 25)
                 tag.Text = p.DisplayName or p.Name
                 tag.Visible = true
             elseif tag then tag.Visible = false end
 
-            -- Wallhack
             if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.Name = "SemiraxHL"
                 hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
 
-            -- Aimbot
             if Flags.Aimbot and isEnemy and onScreen then
                 local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
                 if d < MinDist then MinDist = d BestTarget = char.Head end
