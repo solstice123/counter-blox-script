@@ -1,4 +1,4 @@
--- SEMIRAX ULTIMATE ALL-IN-ONE [MENU + FOV + RAGE + WALLHACK]
+-- SEMIRAX HUB [SMALL FOV EDITION]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,9 +6,9 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Чистка
+-- Очистка
 for _, v in pairs(CoreGui:GetChildren()) do
-    if v.Name == "Semirax_God_Menu" then v:Destroy() end
+    if v.Name == "Semirax_SmallFOV_Menu" then v:Destroy() end
 end
 
 local Flags = {
@@ -17,30 +17,27 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 150
+    Radius = 60 -- УМЕНЬШЕННЫЙ РАДИУС
 }
 
--- Визуал круга FOV
+-- Визуал круга
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
-FOVCircle.Transparency = 0.7
+FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
--- Создание GUI
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_God_Menu"
-ScreenGui.DisplayOrder = 1000000
-ScreenGui.IgnoreGuiInset = true
+ScreenGui.Name = "Semirax_SmallFOV_Menu"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 200, 0, 300)
+Main.Size = UDim2.new(0, 180, 0, 280)
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 1
 Main.BorderColor3 = Color3.new(1, 0, 0)
 
--- Система перетаскивания (Drag)
+-- Простой Drag
 local dragging, dragStart, startPos
 Main.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -55,9 +52,7 @@ UserInputService.InputChanged:Connect(function(input)
         Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
+UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
 local function CreateToggle(name, flag, y)
     local btn = Instance.new("TextButton", Main)
@@ -66,7 +61,6 @@ local function CreateToggle(name, flag, y)
     btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(100, 0, 0)
     btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
     btn.TextColor3 = Color3.new(1, 1, 1)
-    
     btn.MouseButton1Click:Connect(function()
         Flags[flag] = not Flags[flag]
         btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
@@ -81,33 +75,26 @@ CreateToggle("WALLHACK", "Wallhack", 130)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 175)
 CreateToggle("TEAM CHECK", "TeamCheck", 220)
 
--- Основной цикл работы
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
     
     local BestTarget = nil
-    local MinDist = (Flags.FOV_Enabled and Flags.Radius or math.huge)
+    local MinDist = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
 
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
+        if p ~= LocalPlayer and (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team) then
             local char = p.Character
-            if char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-                local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
+            if char and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
+                
+                if Flags.Wallhack then
+                    local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
+                    hl.Name = "SemiraxHL"
+                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                end
 
-                -- Wallhack
-                local hl = char:FindFirstChild("SemiraxHL")
-                if Flags.Wallhack and isEnemy then
-                    if not hl then 
-                        hl = Instance.new("Highlight", char) 
-                        hl.Name = "SemiraxHL"
-                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    end
-                elseif hl then hl:Destroy() end
-
-                -- Aimbot (FOV Check)
-                if Flags.Aimbot and isEnemy then
+                if Flags.Aimbot then
                     local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
                     if onScreen then
                         local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
@@ -120,7 +107,5 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if BestTarget then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position)
-    end
+    if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
 end)
