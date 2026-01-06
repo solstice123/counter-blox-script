@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v14 - ESP COMPLETELY REWRITTEN
--- Пропорциональный ESP + регулировка FOV + синхронизация меню с биндами + РАБОЧИЙ ESP
+-- Counter-Blox Script by Colin v14.1 - ESP + AIMBOT FIXED
+-- Пропорциональный ESP + исправленный аимбот + синхронизация меню
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -22,18 +22,19 @@ local ESP = {
     MaxDistance = 1000
 }
 
--- НАСТРОЙКИ АИМБОТА
+-- НАСТРОЙКИ АИМБОТА (ИСПРАВЛЕНЫ)
 local Aimbot = {
     Enabled = false,
-    FOV = 120, -- Начальный FOV
-    Smoothing = 0.02,
+    FOV = 120,
+    Smoothing = 0.1,
     TargetPart = "Head",
     Prediction = 0.14,
-    AutoPrediction = true
+    TeamCheck = true,
+    VisibleCheck = true
 }
 
 local Menu = {Open = true}
-local FOV_Values = {50, 100, 120, 150, 180, 200} -- Предустановки FOV
+local FOV_Values = {50, 100, 120, 150, 180, 200}
 
 -- СИСТЕМА УВЕДОМЛЕНИЙ
 local Notifications = {
@@ -50,7 +51,7 @@ local function ShowNotification(text, color)
     })
 end
 
--- СИСТЕМА БИНДОВ С СИНХРОНИЗАЦИЕЙ МЕНЮ
+-- СИСТЕМА БИНДОВ
 local Binds = {}
 local Modifiers = {
     LeftControl = false,
@@ -61,7 +62,7 @@ local Modifiers = {
 -- ТАБЛИЦЫ
 local drawings = {}
 local connections = {}
-local menuElements = {} -- Для хранения элементов меню
+local menuElements = {}
 
 -- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
 local BONE_CONNECTIONS = {
@@ -82,7 +83,7 @@ local BONE_CONNECTIONS = {
     {"LeftLowerLeg", "LeftFoot"}
 }
 
--- НОВЫЕ ФУНКЦИИ ESP (ПОЛНОСТЬЮ ПЕРЕПИСАНЫ)
+-- НОВЫЕ ФУНКЦИИ ESP
 
 function ClearAllESP()
     for player, data in pairs(drawings) do
@@ -107,7 +108,7 @@ function ClearPlayerESP(player)
         if d.TeamText then d.TeamText:Remove() end
         if d.HeadDot then d.HeadDot:Remove() end
         if d.Skeleton then
-            for _, bone in pairs(d.Skeleton) do
+            for _, bone in pairs(data.Skeleton) do
                 if bone then bone:Remove() end
             end
         end
@@ -128,7 +129,6 @@ function CreateESPObjects(player)
     
     local d = drawings[player]
     
-    -- Настройка объектов Drawing
     d.Box.Thickness = 2
     d.Box.Filled = false
     d.Box.Visible = false
@@ -147,7 +147,6 @@ function CreateESPObjects(player)
     d.HeadDot.Filled = false
     d.HeadDot.Visible = false
     
-    -- Создание линий для скелетона
     for i = 1, #BONE_CONNECTIONS do
         d.Skeleton[i] = Drawing.new("Line")
         d.Skeleton[i].Thickness = 1.5
@@ -175,8 +174,7 @@ function UpdateAllESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
         
-        -- Проверка команды
-        if Teams then
+        if Aimbot.TeamCheck and Teams then
             local myTeam = LocalPlayer.Team
             local theirTeam = player.Team
             if myTeam and theirTeam and myTeam == theirTeam then
@@ -200,14 +198,12 @@ function UpdateAllESP()
             continue
         end
         
-        -- Создаем объекты если нужно
         if not drawings[player] then
             CreateESPObjects(player)
         end
         
         local d = drawings[player]
         
-        -- Проверка видимости
         local headPos, headVisible = Camera:WorldToViewportPoint(head.Position)
         local rootPos, rootVisible = Camera:WorldToViewportPoint(rootPart.Position)
         
@@ -222,18 +218,15 @@ function UpdateAllESP()
             continue
         end
         
-        -- Дистанция
         local distance = (Camera.CFrame.Position - rootPart.Position).Magnitude
         if distance > ESP.MaxDistance then
             ClearPlayerESP(player)
             continue
         end
         
-        -- Цвет команды
         local teamColor = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255)
         local teamName = player.Team and player.Team.Name or "No Team"
         
-        -- Цвет здоровья
         local healthColor
         if humanoid.Health > 70 then
             healthColor = Color3.fromRGB(0, 255, 0)
@@ -243,13 +236,11 @@ function UpdateAllESP()
             healthColor = Color3.fromRGB(255, 0, 0)
         end
         
-        -- Расчет размера бокса
         local boxHeight = math.abs(headPos.Y - rootPos.Y) + 20
         local boxWidth = boxHeight * 0.5
         local boxX = headPos.X - boxWidth / 2
         local boxY = headPos.Y - boxHeight * 0.3
         
-        -- Отрисовка бокса
         if ESP.Box then
             d.Box.Size = Vector2.new(boxWidth, boxHeight)
             d.Box.Position = Vector2.new(boxX, boxY)
@@ -259,7 +250,6 @@ function UpdateAllESP()
             d.Box.Visible = false
         end
         
-        -- Точка на голове
         if ESP.HeadDot then
             local dotRadius = math.clamp(800 / distance, 3, 8)
             d.HeadDot.Radius = dotRadius
@@ -270,7 +260,6 @@ function UpdateAllESP()
             d.HeadDot.Visible = false
         end
         
-        -- Здоровье
         if ESP.Health then
             d.HealthText.Text = "HP: " .. math.floor(humanoid.Health)
             d.HealthText.Position = Vector2.new(headPos.X, boxY + boxHeight + 5)
@@ -280,7 +269,6 @@ function UpdateAllESP()
             d.HealthText.Visible = false
         end
         
-        -- Команда
         if ESP.Team then
             d.TeamText.Text = "[" .. teamName .. "]"
             d.TeamText.Position = Vector2.new(headPos.X, boxY - 20)
@@ -290,7 +278,6 @@ function UpdateAllESP()
             d.TeamText.Visible = false
         end
         
-        -- Скелетон
         if ESP.Skeleton then
             for i, bonePair in ipairs(BONE_CONNECTIONS) do
                 local part1 = character:FindFirstChild(bonePair[1])
@@ -325,35 +312,104 @@ function UpdateAllESP()
 end
 
 function InitializeESP()
-    -- Очистка старых соединений
     for _, conn in pairs(connections) do
         conn:Disconnect()
     end
     connections = {}
     
-    -- Очистка старых рисунков
     ClearAllESP()
     
-    -- Создание ESP для существующих игроков
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             CreateESPObjects(player)
         end
     end
     
-    -- Основной цикл обновления ESP
     connections["ESPLoop"] = RunService.RenderStepped:Connect(UpdateAllESP)
     
-    -- Игрок присоединился
     connections["PlayerAdded"] = Players.PlayerAdded:Connect(function(player)
         CreateESPObjects(player)
     end)
     
-    -- Игрок вышел
     connections["PlayerRemoving"] = Players.PlayerRemoving:Connect(function(player)
         ClearPlayerESP(player)
     end)
 end
+
+-- ИСПРАВЛЕННЫЙ АИМБОТ
+
+function GetClosestTarget()
+    local closestPlayer = nil
+    local closestDistance = Aimbot.FOV
+    local targetPosition = nil
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        
+        if Aimbot.TeamCheck and Teams then
+            local myTeam = LocalPlayer.Team
+            local theirTeam = player.Team
+            if myTeam and theirTeam and myTeam == theirTeam then
+                continue
+            end
+        end
+        
+        local character = player.Character
+        if not character then continue end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local targetPart = character:FindFirstChild(Aimbot.TargetPart)
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not humanoid or not targetPart or not rootPart then continue end
+        if humanoid.Health <= 0 then continue end
+        
+        -- Позиция цели с предсказанием
+        local targetPos = targetPart.Position
+        if Aimbot.Prediction > 0 then
+            local velocity = rootPart.Velocity
+            targetPos = targetPos + (velocity * Aimbot.Prediction)
+        end
+        
+        -- Проверка видимости на экране
+        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+        if not onScreen then continue end
+        
+        -- Проверка на дистанцию FOV
+        local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+        local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y)
+        local distance = (mousePos - targetScreenPos).Magnitude
+        
+        if distance < closestDistance then
+            closestDistance = distance
+            closestPlayer = player
+            targetPosition = targetPos
+        end
+    end
+    
+    return closestPlayer, targetPosition
+end
+
+-- ОСНОВНОЙ ЦИКЛ АИМБОТА
+connections["AimbotLoop"] = RunService.RenderStepped:Connect(function()
+    if not Aimbot.Enabled then return end
+    
+    local targetPlayer, targetPos = GetClosestTarget()
+    if not targetPlayer or not targetPos then return end
+    
+    -- Плавное наведение
+    local cameraCFrame = Camera.CFrame
+    local cameraPos = cameraCFrame.Position
+    
+    local direction = (targetPos - cameraPos).Unit
+    local currentDirection = cameraCFrame.LookVector
+    
+    -- Интерполяция для плавности
+    local newDirection = currentDirection:Lerp(direction, Aimbot.Smoothing)
+    
+    -- Устанавливаем новое направление камеры
+    Camera.CFrame = CFrame.new(cameraPos, cameraPos + newDirection)
+end)
 
 -- ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ КНОПОК МЕНЮ
 function UpdateMenuButtons()
@@ -387,7 +443,7 @@ function UpdateMenuButtons()
     end
 end
 
--- ИНИЦИАЛИЗАЦИЯ БИНДОВ С СИНХРОНИЗАЦИЕЙ
+-- ИНИЦИАЛИЗАЦИЯ БИНДОВ
 function InitializeBinds()
     Binds = {
         ["f1"] = {
@@ -399,7 +455,6 @@ function InitializeBinds()
                 UpdateMenuButtons()
                 
                 if not ESP.Enabled then
-                    -- Очищаем все рисунки ESP
                     ClearAllESP()
                 end
             end, 
@@ -537,7 +592,6 @@ local notificationDrawings = {}
 local function UpdateNotifications()
     local currentTime = tick()
     
-    -- Удаляем старые уведомления
     for i = #Notifications.Active, 1, -1 do
         local notif = Notifications.Active[i]
         if currentTime - notif.Time > Notifications.Duration then
@@ -545,7 +599,6 @@ local function UpdateNotifications()
         end
     end
     
-    -- Создаем или обновляем отрисовки
     for i, notif in ipairs(Notifications.Active) do
         if not notificationDrawings[i] then
             notificationDrawings[i] = {
@@ -578,7 +631,6 @@ local function UpdateNotifications()
         notif.Y = yPos
     end
     
-    -- Скрываем неиспользуемые отрисовки
     for i = #Notifications.Active + 1, #notificationDrawings do
         if notificationDrawings[i] then
             notificationDrawings[i].Text.Visible = false
@@ -586,85 +638,6 @@ local function UpdateNotifications()
         end
     end
 end
-
--- ИСПРАВЛЕННЫЙ АИМБОТ
-function GetClosestPlayerToMouse()
-    local closestPlayer = nil
-    local shortestDistance = Aimbot.FOV
-    local bestTargetPos = nil
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        
-        -- Проверка команды
-        if Teams then
-            local myTeam = LocalPlayer.Team
-            local theirTeam = player.Team
-            if myTeam and theirTeam and myTeam == theirTeam then
-                continue
-            end
-        end
-        
-        if player.Character then
-            local character = player.Character
-            local humanoid = character:FindFirstChild("Humanoid")
-            local head = character:FindFirstChild("Head")
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoid and humanoid.Health > 0 and head and rootPart then
-                local headPos = head.Position
-                
-                if Aimbot.AutoPrediction then
-                    local velocity = rootPart.Velocity
-                    local distance = (headPos - Camera.CFrame.Position).Magnitude
-                    
-                    local dynamicPrediction = Aimbot.Prediction
-                    dynamicPrediction = dynamicPrediction + (velocity.Magnitude * 0.001)
-                    dynamicPrediction = dynamicPrediction * (distance / 100)
-                    dynamicPrediction = math.clamp(dynamicPrediction, 0.12, 0.18)
-                    
-                    headPos = headPos + (velocity * dynamicPrediction)
-                end
-                
-                local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
-                
-                if onScreen then
-                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-                    local distance = (mousePos - targetPos).Magnitude
-                    
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestPlayer = player
-                        bestTargetPos = headPos
-                    end
-                end
-            end
-        end
-    end
-    
-    return closestPlayer, bestTargetPos
-end
-
--- ОСНОВНОЙ ЦИКЛ АИМБОТА
-connections["AimbotLoop"] = RunService.RenderStepped:Connect(function()
-    if Aimbot.Enabled then
-        local targetPlayer, targetPos = GetClosestPlayerToMouse()
-        
-        if targetPlayer and targetPos then
-            local currentCFrame = Camera.CFrame
-            local cameraPos = currentCFrame.Position
-            
-            local toTarget = targetPos - cameraPos
-            local targetDirection = toTarget.Unit
-            
-            local currentDirection = currentCFrame.LookVector
-            local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
-            
-            Camera.CFrame = CFrame.new(cameraPos, cameraPos + newDirection)
-        end
-    end
-end)
 
 -- СИСТЕМА БИНДОВ
 local function GetBindKey(input)
@@ -679,12 +652,10 @@ end
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Обновляем модификаторы
     if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = true end
     if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = true end
     if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = true end
     
-    -- Проверяем бинд
     local bindKey = GetBindKey(input)
     local bind = Binds[bindKey]
     
@@ -696,13 +667,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    -- Сбрасываем модификаторы
     if input.KeyCode == Enum.KeyCode.LeftControl then Modifiers.LeftControl = false end
     if input.KeyCode == Enum.KeyCode.LeftAlt then Modifiers.LeftAlt = false end
     if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = false end
 end)
 
--- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ УВЕДОМЛЕНИЙ
+-- ОСНОВНОЙ ЦИКЛ УВЕДОМЛЕНИЙ
 connections["NotificationLoop"] = RunService.RenderStepped:Connect(function()
     UpdateNotifications()
 end)
@@ -710,7 +680,7 @@ end)
 -- ИНИЦИАЛИЗАЦИЯ ESP
 InitializeESP()
 
--- МЕНЮШКА
+-- МЕНЮ
 local ScreenGui = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 menuElements.Frame = Frame
@@ -729,7 +699,7 @@ Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v14 - ESP REWRITTEN"
+Title.Text = "COLIN'S SCRIPT v14.1 - AIMBOT FIXED"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -979,7 +949,7 @@ BindList3.TextXAlignment = Enum.TextXAlignment.Left
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
-StatusLabel.Text = "ESP v14 - РАБОТАЕТ НА 100%"
+StatusLabel.Text = "AIMBOT FIXED - F2 TO ENABLE"
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
 StatusLabel.Position = UDim2.new(0.05, 0, 0.94, 0)
 StatusLabel.BackgroundTransparency = 1
@@ -992,4 +962,4 @@ InitializeBinds()
 UpdateMenuButtons()
 Frame.Visible = Menu.Open
 
-ShowNotification("ESP v14 Loaded - F1 to toggle", Color3.fromRGB(0, 255, 0))
+ShowNotification("Script v14.1 Loaded - F2 for Aimbot", Color3.fromRGB(0, 255, 0))
