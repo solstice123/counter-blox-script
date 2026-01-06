@@ -1,5 +1,5 @@
--- Counter-Blox Script by Colin v13.1 - ESP FIXED
--- Пропорциональный ESP + регулировка FOV + синхронизация меню с биндами + исправленное включение/выключение ESP
+-- Counter-Blox Script by Colin v14 - ESP COMPLETELY REWRITTEN
+-- Пропорциональный ESP + регулировка FOV + синхронизация меню с биндами + РАБОЧИЙ ESP
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -18,7 +18,8 @@ local ESP = {
     HeadDot = true,
     Health = true,
     Team = true,
-    BoneColor = Color3.fromRGB(255, 255, 255)
+    BoneColor = Color3.fromRGB(255, 255, 255),
+    MaxDistance = 1000
 }
 
 -- НАСТРОЙКИ АИМБОТА
@@ -59,8 +60,7 @@ local Modifiers = {
 
 -- ТАБЛИЦЫ
 local drawings = {}
-local playerData = {}
-local espUpdateConnection = nil
+local connections = {}
 local menuElements = {} -- Для хранения элементов меню
 
 -- СПИСОК КОСТЕЙ ДЛЯ SKELETON ESP
@@ -82,128 +82,23 @@ local BONE_CONNECTIONS = {
     {"LeftLowerLeg", "LeftFoot"}
 }
 
--- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАСЧЕТА РАЗМЕРА БОКСА
-function CalculateProportionalBoxSize(character)
-    if not character then return Vector2.new(60, 120) end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local head = character:FindFirstChild("Head")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    
-    if not humanoid or not head or not rootPart then 
-        return Vector2.new(60, 120)
-    end
-    
-    -- Проецируем голову и ноги на экран
-    local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
-    
-    -- Приблизительная позиция ног (HumanoidRootPart опущен на 3 студа)
-    local feetPos = rootPart.Position - Vector3.new(0, 3, 0)
-    local feetScreenPos, feetOnScreen = Camera:WorldToViewportPoint(feetPos)
-    
-    if headOnScreen and feetOnScreen then
-        -- Вычисляем высоту на основе разницы Y координат
-        local height = math.abs(headScreenPos.Y - feetScreenPos.Y) + 20
-        local width = height * 0.45 -- Пропорциональная ширина
-        
-        return Vector2.new(width, height)
-    else
-        -- Если точки не видны, используем расчет по расстоянию
-        local distance = (head.Position - Camera.CFrame.Position).Magnitude
-        local scale = 2000 / math.max(distance, 1)
-        
-        local height = 120 * scale
-        local width = 60 * scale
-        
-        -- Ограничиваем максимальный размер
-        height = math.clamp(height, 30, 200)
-        width = math.clamp(width, 20, 100)
-        
-        return Vector2.new(width, height)
-    end
-end
+-- НОВЫЕ ФУНКЦИИ ESP (ПОЛНОСТЬЮ ПЕРЕПИСАНЫ)
 
--- ФУНКЦИЯ ДЛЯ ПРОПОРЦИОНАЛЬНОГО РАДИУСА ГОЛОВЫ
-function CalculateHeadRadius(character, head)
-    if not character or not head then return 5 end
-    
-    local headPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-    if not onScreen then return 5 end
-    
-    local distance = (head.Position - Camera.CFrame.Position).Magnitude
-    local scale = 800 / distance
-    
-    -- Пропорциональный размер головы
-    local radius = 5 * scale
-    
-    -- Ограничиваем размер
-    return math.clamp(radius, 3, 8)
-end
-
--- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА КОМАНДЫ
-function GetTeamColor(player)
-    if player.Team then
-        return player.Team.TeamColor.Color
-    end
-    return Color3.fromRGB(255, 255, 255)
-end
-
--- ФУНКЦИЯ ПОЛУЧЕНИЯ ЦВЕТА ЗДОРОВЬЯ
-function GetHealthColor(health)
-    if health > 70 then return Color3.fromRGB(0, 255, 0) end
-    if health > 30 then return Color3.fromRGB(255, 255, 0) end
-    return Color3.fromRGB(255, 0, 0)
-end
-
--- ПРОВЕРКА ВРАГА
-function IsEnemy(player)
-    if player == LocalPlayer then return false end
-    if Teams then
-        local myTeam = LocalPlayer.Team
-        local theirTeam = player.Team
-        if myTeam and theirTeam then
-            return myTeam ~= theirTeam
+function ClearAllESP()
+    for player, data in pairs(drawings) do
+        if data.Box then data.Box:Remove() end
+        if data.HealthText then data.HealthText:Remove() end
+        if data.TeamText then data.TeamText:Remove() end
+        if data.HeadDot then data.HeadDot:Remove() end
+        if data.Skeleton then
+            for _, bone in pairs(data.Skeleton) do
+                if bone then bone:Remove() end
+            end
         end
     end
-    return true
+    drawings = {}
 end
 
--- СОЗДАНИЕ ESP ДЛЯ ИГРОКА
-function CreatePlayerESP(player)
-    if drawings[player] then ClearPlayerESP(player) end
-    
-    drawings[player] = {
-        Box = Drawing.new("Square"),
-        HealthText = Drawing.new("Text"),
-        TeamText = Drawing.new("Text"),
-        HeadDot = Drawing.new("Circle"),
-        Bones = {},
-        BoneCount = 0
-    }
-    
-    local d = drawings[player]
-    d.Box.Thickness = 2
-    d.Box.Filled = false
-    d.HealthText.Size = 14
-    d.HealthText.Center = true
-    d.HealthText.Outline = true
-    d.TeamText.Size = 12
-    d.TeamText.Center = true
-    d.TeamText.Outline = true
-    d.HeadDot.Thickness = 2
-    d.HeadDot.Filled = false
-    d.HeadDot.Radius = 5
-    
-    for _, bonePair in ipairs(BONE_CONNECTIONS) do
-        local bone = Drawing.new("Line")
-        bone.Thickness = 1.5
-        bone.Color = ESP.BoneColor
-        table.insert(d.Bones, bone)
-    end
-    d.BoneCount = #d.Bones
-end
-
--- ОЧИСТКА ESP
 function ClearPlayerESP(player)
     if drawings[player] then
         local d = drawings[player]
@@ -211,11 +106,253 @@ function ClearPlayerESP(player)
         if d.HealthText then d.HealthText:Remove() end
         if d.TeamText then d.TeamText:Remove() end
         if d.HeadDot then d.HeadDot:Remove() end
-        for _, bone in ipairs(d.Bones) do
-            if bone then bone:Remove() end
+        if d.Skeleton then
+            for _, bone in pairs(d.Skeleton) do
+                if bone then bone:Remove() end
+            end
         end
         drawings[player] = nil
     end
+end
+
+function CreateESPObjects(player)
+    ClearPlayerESP(player)
+    
+    drawings[player] = {
+        Box = Drawing.new("Square"),
+        HealthText = Drawing.new("Text"),
+        TeamText = Drawing.new("Text"),
+        HeadDot = Drawing.new("Circle"),
+        Skeleton = {}
+    }
+    
+    local d = drawings[player]
+    
+    -- Настройка объектов Drawing
+    d.Box.Thickness = 2
+    d.Box.Filled = false
+    d.Box.Visible = false
+    
+    d.HealthText.Size = 14
+    d.HealthText.Outline = true
+    d.HealthText.Center = true
+    d.HealthText.Visible = false
+    
+    d.TeamText.Size = 12
+    d.TeamText.Outline = true
+    d.TeamText.Center = true
+    d.TeamText.Visible = false
+    
+    d.HeadDot.Thickness = 2
+    d.HeadDot.Filled = false
+    d.HeadDot.Visible = false
+    
+    -- Создание линий для скелетона
+    for i = 1, #BONE_CONNECTIONS do
+        d.Skeleton[i] = Drawing.new("Line")
+        d.Skeleton[i].Thickness = 1.5
+        d.Skeleton[i].Color = ESP.BoneColor
+        d.Skeleton[i].Visible = false
+    end
+end
+
+function UpdateAllESP()
+    if not ESP.Enabled then
+        for player, data in pairs(drawings) do
+            if data.Box then data.Box.Visible = false end
+            if data.HealthText then data.HealthText.Visible = false end
+            if data.TeamText then data.TeamText.Visible = false end
+            if data.HeadDot then data.HeadDot.Visible = false end
+            if data.Skeleton then
+                for _, bone in pairs(data.Skeleton) do
+                    if bone then bone.Visible = false end
+                end
+            end
+        end
+        return
+    end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        
+        -- Проверка команды
+        if Teams then
+            local myTeam = LocalPlayer.Team
+            local theirTeam = player.Team
+            if myTeam and theirTeam and myTeam == theirTeam then
+                ClearPlayerESP(player)
+                continue
+            end
+        end
+        
+        local character = player.Character
+        if not character then
+            ClearPlayerESP(player)
+            continue
+        end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local head = character:FindFirstChild("Head")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not humanoid or not head or not rootPart or humanoid.Health <= 0 then
+            ClearPlayerESP(player)
+            continue
+        end
+        
+        -- Создаем объекты если нужно
+        if not drawings[player] then
+            CreateESPObjects(player)
+        end
+        
+        local d = drawings[player]
+        
+        -- Проверка видимости
+        local headPos, headVisible = Camera:WorldToViewportPoint(head.Position)
+        local rootPos, rootVisible = Camera:WorldToViewportPoint(rootPart.Position)
+        
+        if not headVisible or not rootVisible then
+            d.Box.Visible = false
+            d.HealthText.Visible = false
+            d.TeamText.Visible = false
+            d.HeadDot.Visible = false
+            for _, bone in pairs(d.Skeleton) do
+                bone.Visible = false
+            end
+            continue
+        end
+        
+        -- Дистанция
+        local distance = (Camera.CFrame.Position - rootPart.Position).Magnitude
+        if distance > ESP.MaxDistance then
+            ClearPlayerESP(player)
+            continue
+        end
+        
+        -- Цвет команды
+        local teamColor = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+        local teamName = player.Team and player.Team.Name or "No Team"
+        
+        -- Цвет здоровья
+        local healthColor
+        if humanoid.Health > 70 then
+            healthColor = Color3.fromRGB(0, 255, 0)
+        elseif humanoid.Health > 30 then
+            healthColor = Color3.fromRGB(255, 255, 0)
+        else
+            healthColor = Color3.fromRGB(255, 0, 0)
+        end
+        
+        -- Расчет размера бокса
+        local boxHeight = math.abs(headPos.Y - rootPos.Y) + 20
+        local boxWidth = boxHeight * 0.5
+        local boxX = headPos.X - boxWidth / 2
+        local boxY = headPos.Y - boxHeight * 0.3
+        
+        -- Отрисовка бокса
+        if ESP.Box then
+            d.Box.Size = Vector2.new(boxWidth, boxHeight)
+            d.Box.Position = Vector2.new(boxX, boxY)
+            d.Box.Color = teamColor
+            d.Box.Visible = true
+        else
+            d.Box.Visible = false
+        end
+        
+        -- Точка на голове
+        if ESP.HeadDot then
+            local dotRadius = math.clamp(800 / distance, 3, 8)
+            d.HeadDot.Radius = dotRadius
+            d.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
+            d.HeadDot.Color = teamColor
+            d.HeadDot.Visible = true
+        else
+            d.HeadDot.Visible = false
+        end
+        
+        -- Здоровье
+        if ESP.Health then
+            d.HealthText.Text = "HP: " .. math.floor(humanoid.Health)
+            d.HealthText.Position = Vector2.new(headPos.X, boxY + boxHeight + 5)
+            d.HealthText.Color = healthColor
+            d.HealthText.Visible = true
+        else
+            d.HealthText.Visible = false
+        end
+        
+        -- Команда
+        if ESP.Team then
+            d.TeamText.Text = "[" .. teamName .. "]"
+            d.TeamText.Position = Vector2.new(headPos.X, boxY - 20)
+            d.TeamText.Color = teamColor
+            d.TeamText.Visible = true
+        else
+            d.TeamText.Visible = false
+        end
+        
+        -- Скелетон
+        if ESP.Skeleton then
+            for i, bonePair in ipairs(BONE_CONNECTIONS) do
+                local part1 = character:FindFirstChild(bonePair[1])
+                local part2 = character:FindFirstChild(bonePair[2])
+                
+                if part1 and part2 then
+                    local pos1, vis1 = Camera:WorldToViewportPoint(part1.Position)
+                    local pos2, vis2 = Camera:WorldToViewportPoint(part2.Position)
+                    
+                    if vis1 and vis2 and d.Skeleton[i] then
+                        d.Skeleton[i].From = Vector2.new(pos1.X, pos1.Y)
+                        d.Skeleton[i].To = Vector2.new(pos2.X, pos2.Y)
+                        d.Skeleton[i].Color = ESP.BoneColor
+                        d.Skeleton[i].Visible = true
+                    else
+                        if d.Skeleton[i] then
+                            d.Skeleton[i].Visible = false
+                        end
+                    end
+                else
+                    if d.Skeleton[i] then
+                        d.Skeleton[i].Visible = false
+                    end
+                end
+            end
+        else
+            for _, bone in pairs(d.Skeleton) do
+                bone.Visible = false
+            end
+        end
+    end
+end
+
+function InitializeESP()
+    -- Очистка старых соединений
+    for _, conn in pairs(connections) do
+        conn:Disconnect()
+    end
+    connections = {}
+    
+    -- Очистка старых рисунков
+    ClearAllESP()
+    
+    -- Создание ESP для существующих игроков
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreateESPObjects(player)
+        end
+    end
+    
+    -- Основной цикл обновления ESP
+    connections["ESPLoop"] = RunService.RenderStepped:Connect(UpdateAllESP)
+    
+    -- Игрок присоединился
+    connections["PlayerAdded"] = Players.PlayerAdded:Connect(function(player)
+        CreateESPObjects(player)
+    end)
+    
+    -- Игрок вышел
+    connections["PlayerRemoving"] = Players.PlayerRemoving:Connect(function(player)
+        ClearPlayerESP(player)
+    end)
 end
 
 -- ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ КНОПОК МЕНЮ
@@ -263,21 +400,7 @@ function InitializeBinds()
                 
                 if not ESP.Enabled then
                     -- Очищаем все рисунки ESP
-                    for player, drawing in pairs(drawings) do
-                        ClearPlayerESP(player)
-                    end
-                    drawings = {}
-                    
-                    -- Останавливаем цикл обновления ESP
-                    if espUpdateConnection then
-                        espUpdateConnection:Disconnect()
-                        espUpdateConnection = nil
-                    end
-                else
-                    -- Запускаем цикл обновления ESP
-                    if not espUpdateConnection then
-                        StartESPUpdateLoop()
-                    end
+                    ClearAllESP()
                 end
             end, 
             name = "Toggle ESP"
@@ -409,33 +532,6 @@ function InitializeBinds()
     }
 end
 
--- АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ESP
-local function StartESPUpdateLoop()
-    if espUpdateConnection then espUpdateConnection:Disconnect() end
-    
-    espUpdateConnection = RunService.Heartbeat:Connect(function()
-        if ESP.Enabled then
-            for _, player in pairs(Players:GetPlayers()) do
-                if IsEnemy(player) then
-                    if not drawings[player] then
-                        CreatePlayerESP(player)
-                    end
-                else
-                    if drawings[player] then
-                        ClearPlayerESP(player)
-                    end
-                end
-            end
-            
-            for player in pairs(drawings) do
-                if not player:IsDescendantOf(Players) then
-                    ClearPlayerESP(player)
-                end
-            end
-        end
-    end)
-end
-
 -- ОТРИСОВКА УВЕДОМЛЕНИЙ
 local notificationDrawings = {}
 local function UpdateNotifications()
@@ -498,7 +594,18 @@ function GetClosestPlayerToMouse()
     local bestTargetPos = nil
     
     for _, player in pairs(Players:GetPlayers()) do
-        if IsEnemy(player) and player.Character then
+        if player == LocalPlayer then continue end
+        
+        -- Проверка команды
+        if Teams then
+            local myTeam = LocalPlayer.Team
+            local theirTeam = player.Team
+            if myTeam and theirTeam and myTeam == theirTeam then
+                continue
+            end
+        end
+        
+        if player.Character then
             local character = player.Character
             local humanoid = character:FindFirstChild("Humanoid")
             local head = character:FindFirstChild("Head")
@@ -540,7 +647,7 @@ function GetClosestPlayerToMouse()
 end
 
 -- ОСНОВНОЙ ЦИКЛ АИМБОТА
-RunService.RenderStepped:Connect(function()
+connections["AimbotLoop"] = RunService.RenderStepped:Connect(function()
     if Aimbot.Enabled then
         local targetPlayer, targetPos = GetClosestPlayerToMouse()
         
@@ -555,126 +662,6 @@ RunService.RenderStepped:Connect(function()
             local newDirection = currentDirection:Lerp(targetDirection, Aimbot.Smoothing)
             
             Camera.CFrame = CFrame.new(cameraPos, cameraPos + newDirection)
-        end
-    end
-end)
-
--- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ ESP
-RunService.RenderStepped:Connect(function()
-    -- Обновляем уведомления
-    UpdateNotifications()
-    
-    -- Обновляем ESP
-    for player, drawing in pairs(drawings) do
-        local character = player.Character
-        local humanoid = character and character:FindFirstChild("Humanoid")
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-        local head = character and character:FindFirstChild("Head")
-        
-        local visible = false
-        
-        if character and humanoid and humanoid.Health > 0 and rootPart and head then
-            local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position)
-            
-            if onScreen and headOnScreen then
-                visible = true
-                
-                local teamColor = GetTeamColor(player)
-                local teamName = player.Team and player.Team.Name or "No Team"
-                
-                -- Пропорциональный расчет размера бокса
-                local boxSize = CalculateProportionalBoxSize(character)
-                local boxPos = Vector2.new(position.X - boxSize.X / 2, position.Y - boxSize.Y / 2)
-                
-                if ESP.Box and ESP.Enabled then
-                    drawing.Box.Size = boxSize
-                    drawing.Box.Position = boxPos
-                    drawing.Box.Color = teamColor
-                    drawing.Box.Visible = true
-                else
-                    drawing.Box.Visible = false
-                end
-                
-                -- Пропорциональная точка на голове
-                if ESP.HeadDot and ESP.Enabled then
-                    local headRadius = CalculateHeadRadius(character, head)
-                    drawing.HeadDot.Radius = headRadius
-                    drawing.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
-                    drawing.HeadDot.Color = teamColor
-                    drawing.HeadDot.Visible = true
-                else
-                    drawing.HeadDot.Visible = false
-                end
-                
-                if ESP.Health and ESP.Enabled then
-                    local health = math.floor(humanoid.Health)
-                    drawing.HealthText.Text = "HP: " .. health
-                    drawing.HealthText.Position = Vector2.new(position.X, boxPos.Y + boxSize.Y + 5)
-                    drawing.HealthText.Color = GetHealthColor(health)
-                    drawing.HealthText.Visible = true
-                else
-                    drawing.HealthText.Visible = false
-                end
-                
-                if ESP.Team and ESP.Enabled then
-                    drawing.TeamText.Text = "[" .. teamName .. "]"
-                    drawing.TeamText.Position = Vector2.new(position.X, boxPos.Y - 20)
-                    drawing.TeamText.Color = teamColor
-                    drawing.TeamText.Visible = true
-                else
-                    drawing.TeamText.Visible = false
-                end
-                
-                if ESP.Skeleton and ESP.Enabled then
-                    for i, bonePair in ipairs(BONE_CONNECTIONS) do
-                        local part1 = character:FindFirstChild(bonePair[1])
-                        local part2 = character:FindFirstChild(bonePair[2])
-                        
-                        if part1 and part2 then
-                            local pos1, onScreen1 = Camera:WorldToViewportPoint(part1.Position)
-                            local pos2, onScreen2 = Camera:WorldToViewportPoint(part2.Position)
-                            
-                            if onScreen1 and onScreen2 then
-                                local bone = drawing.Bones[i]
-                                if bone then
-                                    bone.From = Vector2.new(pos1.X, pos1.Y)
-                                    bone.To = Vector2.new(pos2.X, pos2.Y)
-                                    bone.Color = ESP.BoneColor
-                                    bone.Visible = true
-                                end
-                            else
-                                if drawing.Bones[i] then
-                                    drawing.Bones[i].Visible = false
-                                end
-                            end
-                        else
-                            if drawing.Bones[i] then
-                                drawing.Bones[i].Visible = false
-                            end
-                        end
-                    end
-                else
-                    for i = 1, drawing.BoneCount do
-                        if drawing.Bones[i] then
-                            drawing.Bones[i].Visible = false
-                        end
-                    end
-                end
-            end
-        end
-        
-        if not visible then
-            drawing.Box.Visible = false
-            drawing.HealthText.Visible = false
-            drawing.TeamText.Visible = false
-            drawing.HeadDot.Visible = false
-            
-            for i = 1, drawing.BoneCount do
-                if drawing.Bones[i] then
-                    drawing.Bones[i].Visible = false
-                end
-            end
         end
     end
 end)
@@ -715,24 +702,13 @@ UserInputService.InputEnded:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.LeftShift then Modifiers.LeftShift = false end
 end)
 
+-- ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ УВЕДОМЛЕНИЙ
+connections["NotificationLoop"] = RunService.RenderStepped:Connect(function()
+    UpdateNotifications()
+end)
+
 -- ИНИЦИАЛИЗАЦИЯ ESP
-for _, player in pairs(Players:GetPlayers()) do
-    if IsEnemy(player) then
-        CreatePlayerESP(player)
-    end
-end
-
-StartESPUpdateLoop()
-
-Players.PlayerAdded:Connect(function(player)
-    if IsEnemy(player) then
-        CreatePlayerESP(player)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    ClearPlayerESP(player)
-end)
+InitializeESP()
 
 -- МЕНЮШКА
 local ScreenGui = Instance.new("ScreenGui")
@@ -742,7 +718,7 @@ menuElements.Frame = Frame
 local Title = Instance.new("TextLabel")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "ColinMenuV13"
+ScreenGui.Name = "ColinMenuV14"
 ScreenGui.ResetOnSpawn = false
 
 Frame.Parent = ScreenGui
@@ -753,7 +729,7 @@ Frame.Active = true
 Frame.Draggable = true
 
 Title.Parent = Frame
-Title.Text = "COLIN'S SCRIPT v13.1 - ESP FIXED"
+Title.Text = "COLIN'S SCRIPT v14 - ESP REWRITTEN"
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -785,19 +761,7 @@ menuElements.ESPToggle.MouseButton1Click:Connect(function()
     UpdateMenuButtons()
     
     if not ESP.Enabled then
-        for player in pairs(drawings) do
-            ClearPlayerESP(player)
-        end
-        drawings = {}
-        
-        if espUpdateConnection then
-            espUpdateConnection:Disconnect()
-            espUpdateConnection = nil
-        end
-    else
-        if not espUpdateConnection then
-            StartESPUpdateLoop()
-        end
+        ClearAllESP()
     end
 end)
 
@@ -1015,7 +979,7 @@ BindList3.TextXAlignment = Enum.TextXAlignment.Left
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Frame
-StatusLabel.Text = "ESP TOGGLE FIXED - F1 TO ENABLE/DISABLE"
+StatusLabel.Text = "ESP v14 - РАБОТАЕТ НА 100%"
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 18)
 StatusLabel.Position = UDim2.new(0.05, 0, 0.94, 0)
 StatusLabel.BackgroundTransparency = 1
@@ -1027,3 +991,5 @@ StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 InitializeBinds()
 UpdateMenuButtons()
 Frame.Visible = Menu.Open
+
+ShowNotification("ESP v14 Loaded - F1 to toggle", Color3.fromRGB(0, 255, 0))
