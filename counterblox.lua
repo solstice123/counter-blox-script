@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8.1 - ESP WITH HPBAR & ITEM HOLDING]
+-- SEMIRAX CHEAT [V8.3 - VERTICAL SIDE HP BAR]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -21,10 +21,9 @@ local Flags = {
     MenuVisible = true
 }
 
-local NameTags = {}
-local HPBars = {}
-local HPBarBacks = {}
+local NameTags, HPBars, HPBarBacks = {}, {}, {}
 
+-- Круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Color = Color3.new(1, 0, 0)
@@ -32,10 +31,10 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Tactical_V8.1"
+ScreenGui.Name = "Semirax_Vertical_V8.3"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 190, 0, 360) 
+Main.Size = UDim2.new(0, 190, 0, 400) 
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
@@ -75,14 +74,36 @@ local function CreateToggle(name, flag, y)
 end
 
 CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("ADVANCED ESP", "ESP", 80)
+CreateToggle("VERTICAL ESP", "ESP", 80)
 CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
 
+local FOVLabel = Instance.new("TextLabel", Main)
+FOVLabel.Size = UDim2.new(1, 0, 0, 25)
+FOVLabel.Position = UDim2.new(0, 0, 0, 245)
+FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
+FOVLabel.TextColor3 = Color3.new(1, 1, 1)
+FOVLabel.BackgroundTransparency = 1
+
+local function CreateAdj(text, x, delta)
+    local b = Instance.new("TextButton", Main)
+    b.Size = UDim2.new(0.4, 0, 0, 35)
+    b.Position = UDim2.new(x, 0, 0, 275)
+    b.Text = text
+    b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.MouseButton1Click:Connect(function()
+        Flags.Radius = math.clamp(Flags.Radius + delta, 10, 600)
+        FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
+    end)
+end
+CreateAdj("-", 0.05, -10)
+CreateAdj("+", 0.55, 10)
+
 local CloseBtn = Instance.new("TextButton", Main)
-CloseBtn.Size = UDim2.new(0.9, 0, 0, 30)
-CloseBtn.Position = UDim2.new(0.05, 0, 0, 320)
+CloseBtn.Size = UDim2.new(0.9, 0, 0, 35)
+CloseBtn.Position = UDim2.new(0.05, 0, 0, 355)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 CloseBtn.Text = "CLOSE (Insert to open)"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -90,23 +111,13 @@ CloseBtn.MouseButton1Click:Connect(ToggleMenu)
 
 local function CreateESP(player)
     local text = Drawing.new("Text")
-    text.Visible = false
-    text.Center = true
-    text.Outline = true
-    text.Size = 13
-    text.Color = Color3.new(1, 1, 1)
+    text.Visible = false; text.Center = true; text.Outline = true; text.Size = 13; text.Color = Color3.new(1, 1, 1)
     NameTags[player] = text
-
     local barBack = Drawing.new("Line")
-    barBack.Visible = false
-    barBack.Thickness = 4
-    barBack.Color = Color3.new(0, 0, 0)
+    barBack.Visible = false; barBack.Thickness = 4; barBack.Color = Color3.new(0, 0, 0)
     HPBarBacks[player] = barBack
-
     local bar = Drawing.new("Line")
-    bar.Visible = false
-    bar.Thickness = 2
-    bar.Color = Color3.new(0, 1, 0)
+    bar.Visible = false; bar.Thickness = 2; bar.Color = Color3.new(0, 1, 0)
     HPBars[player] = bar
 end
 
@@ -116,41 +127,46 @@ Players.PlayerAdded:Connect(CreateESP)
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
+    local MousePos = UserInputService:GetMouseLocation()
     local BestTarget = nil
     local MinDist = Flags.Radius
-    local MousePos = UserInputService:GetMouseLocation()
 
     for _, p in pairs(Players:GetPlayers()) do
         local char = p.Character
+        local hum = char and char:FindFirstChild("Humanoid")
         local tag = NameTags[p]
         local bar = HPBars[p]
         local barBack = HPBarBacks[p]
 
-        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") then
-            local hum = char.Humanoid
+        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and hum and hum.Health > 0 then
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
-            local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
+            local headPos, headOnScreen = Camera:WorldToViewportPoint(char.Head.Position)
+            local rootPart = char:FindFirstChild("HumanoidRootPart")
             
-            if onScreen and Flags.ESP and isEnemy and hum.Health > 0 then
-                -- Определяем предмет в руках
+            if headOnScreen and Flags.ESP and isEnemy and rootPart then
+                -- Расчет размеров для вертикального бара
+                local topPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 1.5, 0))
+                local bottomPos = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+                local barHeight = math.abs(topPos.Y - bottomPos.Y)
+                local barWidth = 4
+                local xOffset = 30 -- Смещение бара влево от центра игрока
+
                 local tool = char:FindFirstChildOfClass("Tool")
-                local toolName = tool and tool.Name or "None"
-                local hpPercent = math.floor((hum.Health / hum.MaxHealth) * 100)
+                local hpPercent = hum.Health / hum.MaxHealth
                 
-                -- Текст: Имя | HP% | Предмет
-                tag.Position = Vector2.new(pos.X, pos.Y - 40)
-                tag.Text = string.format("%s [%d%%]\nHolding: %s", p.DisplayName or p.Name, hpPercent, toolName)
+                -- Текст над головой
+                tag.Position = Vector2.new(headPos.X, headPos.Y - 45)
+                tag.Text = string.format("%s\nHolding: %s", p.Name, tool and tool.Name or "None")
                 tag.Visible = true
-
-                -- Рисуем HP Bar
-                local barWidth = 40
-                barBack.From = Vector2.new(pos.X - barWidth/2, pos.Y - 20)
-                barBack.To = Vector2.new(pos.X + barWidth/2, pos.Y - 20)
+                
+                -- Вертикальный HP Bar (Слева)
+                barBack.From = Vector2.new(headPos.X - xOffset, bottomPos.Y)
+                barBack.To = Vector2.new(headPos.X - xOffset, topPos.Y)
                 barBack.Visible = true
-
-                bar.From = Vector2.new(pos.X - barWidth/2, pos.Y - 20)
-                bar.To = Vector2.new(pos.X - barWidth/2 + (barWidth * (hum.Health/hum.MaxHealth)), pos.Y - 20)
-                bar.Color = Color3.fromHSV(hum.Health/hum.MaxHealth * 0.3, 1, 1) -- Смена цвета от красного к зеленому
+                
+                bar.From = Vector2.new(headPos.X - xOffset, bottomPos.Y)
+                bar.To = Vector2.new(headPos.X - xOffset, bottomPos.Y - (barHeight * hpPercent))
+                bar.Color = Color3.fromHSV(hpPercent * 0.3, 1, 1)
                 bar.Visible = true
             else
                 if tag then tag.Visible = false end
@@ -158,15 +174,13 @@ RunService.RenderStepped:Connect(function()
                 if barBack then barBack.Visible = false end
             end
 
-            -- Wallhack и Aimbot остаются прежними
-            if Flags.Wallhack and isEnemy and hum.Health > 0 then
+            if Flags.Wallhack and isEnemy then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
-                hl.Name = "SemiraxHL"
                 hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
 
-            if Flags.Aimbot and isEnemy and onScreen and hum.Health > 0 then
-                local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+            if Flags.Aimbot and isEnemy and headOnScreen then
+                local d = (Vector2.new(headPos.X, headPos.Y) - MousePos).Magnitude
                 if d < MinDist then MinDist = d BestTarget = char.Head end
             end
         else
