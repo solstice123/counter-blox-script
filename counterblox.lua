@@ -1,79 +1,92 @@
--- Semirax Cheat Hub v3 [FULL WALLHACK + VISUALS]
+-- Semirax Cheat Hub v5 [ULTIMATE UI EDITION]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Config = {
+local Flags = {
+    Aimbot = true,
     Wallhack = true,
     BoxESP = true,
-    Smoothness = 0.1,
     TeamCheck = true
 }
 
-local function CreateWallhack(char, player)
-    if not char:FindFirstChild("SemiraxHighlight") then
-        local Highlight = Instance.new("Highlight")
-        Highlight.Name = "SemiraxHighlight"
-        Highlight.Parent = char
-        Highlight.Adornee = char
-        Highlight.FillTransparency = 0.5
-        Highlight.OutlineTransparency = 0
-        Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- This makes it a Wallhack
-        Highlight.FillColor = player.TeamColor.Color
-    end
+-- UI CONSTRUCTION
+local ScreenGui = Instance.new("ScreenGui", CoreGui)
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0, 220, 0, 280)
+Main.Position = UDim2.new(0.1, 0, 0.4, 0)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Text = "SEMIRAX RAGE"
+Title.TextColor3 = Color3.new(1, 0, 0)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+local function AddToggle(text, flag, yPos)
+    local btn = Instance.new("TextButton", Main)
+    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.Position = UDim2.new(0.05, 0, 0, yPos)
+    btn.Text = text .. ": ON"
+    btn.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    
+    btn.MouseButton1Click:Connect(function()
+        Flags[flag] = not Flags[flag]
+        btn.Text = text .. (Flags[flag] and ": ON" or ": OFF")
+        btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(40, 100, 40) or Color3.fromRGB(100, 40, 40)
+    end)
 end
 
-local function CreateDrawing(type, properties)
-    local d = Drawing.new(type)
-    for i, v in pairs(properties) do d[i] = v end
-    return d
-end
+AddToggle("Rage Aimbot", "Aimbot", 45)
+AddToggle("Wallhack (Fill)", "Wallhack", 95)
+AddToggle("Box ESP", "BoxESP", 145)
+AddToggle("Team Check", "TeamCheck", 195)
 
-local cache = {}
-
+-- CORE LOGIC
 RunService.RenderStepped:Connect(function()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and (not Config.TeamCheck or player.Team ~= LocalPlayer.Team) then
-            local char = player.Character
-            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+    local Target = nil
+    local MinDist = math.huge
+
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team) then
+            local char = p.Character
+            if char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 
-                -- Wallhack (Highlight)
-                if Config.Wallhack then
-                    CreateWallhack(char, player)
-                elseif char:FindFirstChild("SemiraxHighlight") then
-                    char.SemiraxHighlight:Destroy()
+                -- Wallhack Logic
+                local hl = char:FindFirstChild("SemiraxHL")
+                if Flags.Wallhack then
+                    if not hl then
+                        hl = Instance.new("Highlight", char)
+                        hl.Name = "SemiraxHL"
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    end
+                    hl.FillColor = p.TeamColor.Color
+                elseif hl then
+                    hl:Destroy()
                 end
 
-                -- Box ESP Logic
-                local hrp = char.HumanoidRootPart
-                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                
-                if not cache[player] then
-                    cache[player] = {
-                        Box = CreateDrawing("Square", {Thickness = 1, Filled = false, Transparency = 1, Visible = false}),
-                        Text = CreateDrawing("Text", {Size = 13, Center = true, Outline = true, Visible = false})
-                    }
-                end
-                
-                local data = cache[player]
-                if onScreen and Config.BoxESP then
-                    local sizeX = 2000 / pos.Z
-                    local sizeY = 3000 / pos.Z
-                    data.Box.Visible = true
-                    data.Box.Size = Vector2.new(sizeX, sizeY)
-                    data.Box.Position = Vector2.new(pos.X - sizeX / 2, pos.Y - sizeY / 2)
-                    data.Box.Color = player.TeamColor.Color
-                    
-                    data.Text.Visible = true
-                    data.Text.Position = Vector2.new(pos.X, pos.Y + (sizeY / 2) + 5)
-                    data.Text.Text = player.Name .. " [LOCKED]"
-                    data.Text.Color = Color3.new(1, 1, 1)
-                else
-                    data.Box.Visible = false
-                    data.Text.Visible = false
+                -- Aimbot Target Scan
+                if Flags.Aimbot then
+                    local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
+                    if onScreen then
+                        local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                        if mag < MinDist then
+                            MinDist = mag
+                            Target = char.Head
+                        end
+                    end
                 end
             end
         end
+    end
+
+    if Flags.Aimbot and Target then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position)
     end
 end)
