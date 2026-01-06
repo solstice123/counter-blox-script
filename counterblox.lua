@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8 - INSERT TO HIDE + CLOSE BUTTON]
+-- SEMIRAX CHEAT [V9 - NO RECOIL & NO SPREAD]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -17,6 +17,8 @@ local Flags = {
     Wallhack = true,
     FOV_Enabled = true,
     TeamCheck = true,
+    NoRecoil = true, -- Новое
+    NoSpread = true, -- Новое
     Radius = 20,
     MenuVisible = true
 }
@@ -31,11 +33,11 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Final_V8"
+ScreenGui.Name = "Semirax_Final_V9"
 ScreenGui.DisplayOrder = 999999
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 190, 0, 360) -- Увеличил под кнопку закрытия
+Main.Size = UDim2.new(0, 190, 0, 440) -- Увеличил размер под новые кнопки
 Main.Position = UDim2.new(0, 10, 0, 10)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 2
@@ -50,20 +52,16 @@ Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 16
 Title.Font = Enum.Font.SourceSansBold
 
--- ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ВИДИМОСТИ
 local function ToggleMenu()
     Flags.MenuVisible = not Flags.MenuVisible
     Main.Visible = Flags.MenuVisible
 end
 
--- КЛАВИША INSERT ДЛЯ СКРЫТИЯ
 UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
-        ToggleMenu()
-    end
+    if not gpe and input.KeyCode == Enum.KeyCode.Insert then ToggleMenu() end
 end)
 
--- ПЕРЕТАСКИВАНИЕ
+-- Драг (упрощенный для стабильности)
 local dragging, dragStart, startPos
 Main.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -94,16 +92,18 @@ local function CreateToggle(name, flag, y)
     end)
 end
 
+-- КНОПКИ
 CreateToggle("RAGE AIM", "Aimbot", 40)
 CreateToggle("BOX ESP", "ESP", 80)
 CreateToggle("WALLHACK", "Wallhack", 120)
-CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
-CreateToggle("TEAM CHECK", "TeamCheck", 200)
+CreateToggle("NO RECOIL", "NoRecoil", 160) -- Новое
+CreateToggle("NO SPREAD", "NoSpread", 200) -- Новое
+CreateToggle("FOV CIRCLE", "FOV_Enabled", 240)
+CreateToggle("TEAM CHECK", "TeamCheck", 280)
 
--- КНОПКА ЗАКРЫТЬ (CLOSE)
 local CloseBtn = Instance.new("TextButton", Main)
 CloseBtn.Size = UDim2.new(0.9, 0, 0, 30)
-CloseBtn.Position = UDim2.new(0.05, 0, 0, 320)
+CloseBtn.Position = UDim2.new(0.05, 0, 0, 400)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
 CloseBtn.Text = "CLOSE (Insert to open)"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -111,7 +111,7 @@ CloseBtn.MouseButton1Click:Connect(ToggleMenu)
 
 local FOVLabel = Instance.new("TextLabel", Main)
 FOVLabel.Size = UDim2.new(1, 0, 0, 25)
-FOVLabel.Position = UDim2.new(0, 0, 0, 245)
+FOVLabel.Position = UDim2.new(0, 0, 0, 325)
 FOVLabel.Text = "FOV RADIUS: " .. Flags.Radius
 FOVLabel.TextColor3 = Color3.new(1, 1, 1)
 FOVLabel.BackgroundTransparency = 1
@@ -119,7 +119,7 @@ FOVLabel.BackgroundTransparency = 1
 local function CreateAdj(text, x, delta)
     local b = Instance.new("TextButton", Main)
     b.Size = UDim2.new(0.4, 0, 0, 35)
-    b.Position = UDim2.new(x, 0, 0, 275)
+    b.Position = UDim2.new(x, 0, 0, 355)
     b.Text = text
     b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     b.TextColor3 = Color3.new(1, 1, 1)
@@ -132,6 +132,23 @@ end
 CreateAdj("-", 0.05, -10)
 CreateAdj("+", 0.55, 10)
 
+-- ЛОГИКА NO RECOIL / SPREAD (Общая для большинства систем)
+local mt = getrawmetatable(game)
+local old_index = mt.__index
+setreadonly(mt, false)
+
+mt.__index = newcclosure(function(t, k)
+    if Flags.NoRecoil and k == "Recoil" or k == "recoil" or k == "RecoilMin" or k == "RecoilMax" then
+        return 0
+    end
+    if Flags.NoSpread and k == "Spread" or k == "spread" or k == "Accuracy" then
+        return 0
+    end
+    return old_index(t, k)
+end)
+setreadonly(mt, true)
+
+-- Намтаги
 local function CreateTag(player)
     local text = Drawing.new("Text")
     text.Visible = false
