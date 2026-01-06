@@ -1,4 +1,4 @@
--- SEMIRAX CHEAT [V8.3 - VERTICAL SIDE HP BAR]
+-- SEMIRAX CHEAT [V8.4 - PRO BOX ESP + EXTERNAL VERTICAL HP BAR]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -21,7 +21,7 @@ local Flags = {
     MenuVisible = true
 }
 
-local NameTags, HPBars, HPBarBacks = {}, {}, {}
+local ESP_Data = {}
 
 -- Круг FOV
 local FOVCircle = Drawing.new("Circle")
@@ -31,7 +31,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Vertical_V8.3"
+ScreenGui.Name = "Semirax_Pro_V8.4"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 190, 0, 400) 
@@ -74,7 +74,7 @@ local function CreateToggle(name, flag, y)
 end
 
 CreateToggle("RAGE AIM", "Aimbot", 40)
-CreateToggle("VERTICAL ESP", "ESP", 80)
+CreateToggle("PRO BOX ESP", "ESP", 80)
 CreateToggle("WALLHACK", "Wallhack", 120)
 CreateToggle("FOV CIRCLE", "FOV_Enabled", 160)
 CreateToggle("TEAM CHECK", "TeamCheck", 200)
@@ -109,16 +109,29 @@ CloseBtn.Text = "CLOSE (Insert to open)"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
 CloseBtn.MouseButton1Click:Connect(ToggleMenu)
 
-local function CreateESP(player)
-    local text = Drawing.new("Text")
-    text.Visible = false; text.Center = true; text.Outline = true; text.Size = 13; text.Color = Color3.new(1, 1, 1)
-    NameTags[player] = text
-    local barBack = Drawing.new("Line")
-    barBack.Visible = false; barBack.Thickness = 4; barBack.Color = Color3.new(0, 0, 0)
-    HPBarBacks[player] = barBack
-    local bar = Drawing.new("Line")
-    bar.Visible = false; bar.Thickness = 2; bar.Color = Color3.new(0, 1, 0)
-    HPBars[player] = bar
+local function CreateESP(p)
+    local data = {
+        Box = Drawing.new("Square"),
+        BarBack = Drawing.new("Line"),
+        Bar = Drawing.new("Line"),
+        Tag = Drawing.new("Text")
+    }
+    data.Box.Thickness = 1
+    data.Box.Color = Color3.new(1, 1, 1)
+    data.Box.Filled = false
+    
+    data.BarBack.Thickness = 3
+    data.BarBack.Color = Color3.new(0, 0, 0)
+    
+    data.Bar.Thickness = 1
+    data.Bar.Color = Color3.new(0, 1, 0)
+    
+    data.Tag.Center = true
+    data.Tag.Outline = true
+    data.Tag.Size = 13
+    data.Tag.Color = Color3.new(1, 1, 1)
+    
+    ESP_Data[p] = data
 end
 
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p) end end
@@ -132,61 +145,61 @@ RunService.RenderStepped:Connect(function()
     local MinDist = Flags.Radius
 
     for _, p in pairs(Players:GetPlayers()) do
+        local data = ESP_Data[p]
         local char = p.Character
         local hum = char and char:FindFirstChild("Humanoid")
-        local tag = NameTags[p]
-        local bar = HPBars[p]
-        local barBack = HPBarBacks[p]
+        local root = char and char:FindFirstChild("HumanoidRootPart")
 
-        if p ~= LocalPlayer and char and char:FindFirstChild("Head") and hum and hum.Health > 0 then
+        if p ~= LocalPlayer and char and hum and root and hum.Health > 0 then
             local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
-            local headPos, headOnScreen = Camera:WorldToViewportPoint(char.Head.Position)
-            local rootPart = char:FindFirstChild("HumanoidRootPart")
+            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
             
-            if headOnScreen and Flags.ESP and isEnemy and rootPart then
-                -- Расчет размеров для вертикального бара
-                local topPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 1.5, 0))
-                local bottomPos = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
-                local barHeight = math.abs(topPos.Y - bottomPos.Y)
-                local barWidth = 4
-                local xOffset = 30 -- Смещение бара влево от центра игрока
-
+            if onScreen and Flags.ESP and isEnemy then
+                -- Расчет пропорционального прямоугольника
+                local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                local h = math.abs(headPos.Y - legPos.Y)
+                local w = h / 2
+                
+                -- Рисуем BOX
+                data.Box.Size = Vector2.new(w, h)
+                data.Box.Position = Vector2.new(pos.X - w / 2, pos.Y - h / 2)
+                data.Box.Visible = true
+                
+                -- Рисуем HP BAR (Снаружи слева)
+                local barX = pos.X - w / 2 - 5
+                local hpPct = hum.Health / hum.MaxHealth
+                
+                data.BarBack.From = Vector2.new(barX, pos.Y + h / 2)
+                data.BarBack.To = Vector2.new(barX, pos.Y - h / 2)
+                data.BarBack.Visible = true
+                
+                data.Bar.From = Vector2.new(barX, pos.Y + h / 2)
+                data.Bar.To = Vector2.new(barX, pos.Y + h / 2 - (h * hpPct))
+                data.Bar.Color = Color3.fromHSV(hpPct * 0.3, 1, 1)
+                data.Bar.Visible = true
+                
+                -- Текст (Имя и предмет)
                 local tool = char:FindFirstChildOfClass("Tool")
-                local hpPercent = hum.Health / hum.MaxHealth
-                
-                -- Текст над головой
-                tag.Position = Vector2.new(headPos.X, headPos.Y - 45)
-                tag.Text = string.format("%s\nHolding: %s", p.Name, tool and tool.Name or "None")
-                tag.Visible = true
-                
-                -- Вертикальный HP Bar (Слева)
-                barBack.From = Vector2.new(headPos.X - xOffset, bottomPos.Y)
-                barBack.To = Vector2.new(headPos.X - xOffset, topPos.Y)
-                barBack.Visible = true
-                
-                bar.From = Vector2.new(headPos.X - xOffset, bottomPos.Y)
-                bar.To = Vector2.new(headPos.X - xOffset, bottomPos.Y - (barHeight * hpPercent))
-                bar.Color = Color3.fromHSV(hpPercent * 0.3, 1, 1)
-                bar.Visible = true
+                data.Tag.Position = Vector2.new(pos.X, pos.Y - h / 2 - 20)
+                data.Tag.Text = string.format("%s | %s", p.Name, tool and tool.Name or "Hands")
+                data.Tag.Visible = true
             else
-                if tag then tag.Visible = false end
-                if bar then bar.Visible = false end
-                if barBack then barBack.Visible = false end
+                data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
             end
 
-            if Flags.Wallhack and isEnemy then
+            -- Wallhack и Aimbot
+            if Flags.Wallhack and isEnemy and hum.Health > 0 then
                 local hl = char:FindFirstChild("SemiraxHL") or Instance.new("Highlight", char)
                 hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
             elseif char:FindFirstChild("SemiraxHL") then char.SemiraxHL:Destroy() end
 
-            if Flags.Aimbot and isEnemy and headOnScreen then
-                local d = (Vector2.new(headPos.X, headPos.Y) - MousePos).Magnitude
+            if Flags.Aimbot and isEnemy and onScreen and hum.Health > 0 then
+                local d = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
                 if d < MinDist then MinDist = d BestTarget = char.Head end
             end
-        else
-            if tag then tag.Visible = false end
-            if bar then bar.Visible = false end
-            if barBack then barBack.Visible = false end
+        elseif data then
+            data.Box.Visible = false; data.Bar.Visible = false; data.BarBack.Visible = false; data.Tag.Visible = false
         end
     end
     if BestTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, BestTarget.Position) end
