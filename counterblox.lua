@@ -1,78 +1,94 @@
--- Semirax Cheat Hub v5 [ULTIMATE UI EDITION]
+-- SEMIRAX ULTIMATE UI [FIXED VISIBILITY]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
+-- Ждем загрузки интерфейса игрока
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local Flags = {
     Aimbot = true,
+    ESP = true,
     Wallhack = true,
-    BoxESP = true,
     TeamCheck = true
 }
 
--- UI CONSTRUCTION
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 220, 0, 280)
-Main.Position = UDim2.new(0.1, 0, 0.4, 0)
-Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Main.BorderSizePixel = 0
+-- Удаление старого меню если есть
+if PlayerGui:FindFirstChild("SemiraxMenu") then
+    PlayerGui.SemiraxMenu:Destroy()
+end
+
+-- Создание интерфейса
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SemiraxMenu"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame")
+Main.Name = "MainFrame"
+Main.Parent = ScreenGui
+Main.Size = UDim2.new(0, 200, 0, 250)
+Main.Position = UDim2.new(0.5, -100, 0.5, -125)
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.BorderSizePixel = 2
 Main.Active = true
-Main.Draggable = true
+Main.Draggable = true -- Можно двигать мышкой
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.Text = "SEMIRAX RAGE"
+local Title = Instance.new("TextLabel")
+Title.Parent = Main
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.Text = "SEMIRAX HUB"
 Title.TextColor3 = Color3.new(1, 0, 0)
-Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Title.TextSize = 18
 
-local function AddToggle(text, flag, yPos)
-    local btn = Instance.new("TextButton", Main)
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
-    btn.Position = UDim2.new(0.05, 0, 0, yPos)
-    btn.Text = text .. ": ON"
-    btn.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
+local function CreateButton(name, flag, offset)
+    local btn = Instance.new("TextButton")
+    btn.Parent = Main
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Position = UDim2.new(0.05, 0, 0, offset)
+    btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+    btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
     btn.TextColor3 = Color3.new(1, 1, 1)
     
     btn.MouseButton1Click:Connect(function()
         Flags[flag] = not Flags[flag]
-        btn.Text = text .. (Flags[flag] and ": ON" or ": OFF")
-        btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(40, 100, 40) or Color3.fromRGB(100, 40, 40)
+        btn.Text = name .. (Flags[flag] and ": ON" or ": OFF")
+        btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
     end)
 end
 
-AddToggle("Rage Aimbot", "Aimbot", 45)
-AddToggle("Wallhack (Fill)", "Wallhack", 95)
-AddToggle("Box ESP", "BoxESP", 145)
-AddToggle("Team Check", "TeamCheck", 195)
+CreateButton("RAGE AIM", "Aimbot", 40)
+CreateButton("BOX ESP", "ESP", 85)
+CreateButton("WALLHACK", "Wallhack", 130)
+CreateButton("TEAM CHECK", "TeamCheck", 175)
 
--- CORE LOGIC
+-- Логика функций
 RunService.RenderStepped:Connect(function()
+    local Camera = workspace.CurrentCamera
     local Target = nil
     local MinDist = math.huge
 
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team) then
+        if p ~= LocalPlayer then
             local char = p.Character
             if char and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local isTeammate = (p.Team == LocalPlayer.Team)
                 
-                -- Wallhack Logic
+                -- Wallhack (Highlight)
                 local hl = char:FindFirstChild("SemiraxHL")
-                if Flags.Wallhack then
+                if Flags.Wallhack and (not Flags.TeamCheck or not isTeammate) then
                     if not hl then
                         hl = Instance.new("Highlight", char)
                         hl.Name = "SemiraxHL"
                         hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                     end
-                    hl.FillColor = p.TeamColor.Color
                 elseif hl then
                     hl:Destroy()
                 end
 
-                -- Aimbot Target Scan
-                if Flags.Aimbot then
+                -- Aimbot Search
+                if Flags.Aimbot and (not Flags.TeamCheck or not isTeammate) then
                     local pos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
                     if onScreen then
                         local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
