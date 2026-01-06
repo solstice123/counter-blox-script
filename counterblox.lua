@@ -1,4 +1,4 @@
--- SEMIRAX PREMIUM V10.1 [STABLE DRAG + CLEAR TEXT]
+-- SEMIRAX PREMIUM V10.3 [CHAMS + DRAG FIX + BIG TEXT]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +7,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Полная очистка
+-- Очистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") then v:Destroy() end
 end
@@ -15,10 +15,10 @@ end
 local Flags = {
     Aimbot = true,
     ESP = true,
-    Wallhack = true,
+    Wallhack = true, -- Тот самый Chams
     FOV_Enabled = true,
     TeamCheck = true,
-    Radius = 40, -- Начальный размер
+    Radius = 40, 
     MenuOpen = true
 }
 
@@ -26,85 +26,74 @@ local ESP_Data = {}
 
 -- Круг FOV
 local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1
+FOVCircle.Thickness = 1.5
 FOVCircle.Color = Color3.new(1, 1, 1)
-FOVCircle.Transparency = 0.6
+FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 -- ИНТЕРФЕЙС
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V10_1"
+ScreenGui.Name = "Semirax_V10_3"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 220, 0, 400)
-Main.Position = UDim2.new(0.1, 0, 0.2, 0)
-Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Main.Size = UDim2.new(0, 220, 0, 420)
+Main.Position = UDim2.new(0.5, -110, 0.4, -210)
+Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 Main.BorderSizePixel = 0
-Main.ClipsDescendants = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+Main.Active = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
--- ПЕРЕТАСКИВАНИЕ ПО НАЗВАНИЮ (Header)
-local Header = Instance.new("TextButton", Main)
+-- Заголовок для перемещения (ЛКМ)
+local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 50)
 Header.BackgroundColor3 = Color3.new(1, 1, 1)
 Header.Text = "SEMIRAX CHEAT"
 Header.TextColor3 = Color3.new(0, 0, 0)
 Header.Font = Enum.Font.GothamBold
 Header.TextSize = 18
-Header.AutoButtonColor = false
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+Header.Active = true
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
 
-local dragToggle, dragStart, startPos
+-- Логика перетаскивания
+local dragStart, startPos, dragging
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = true
+        dragging = true
         dragStart = input.Position
         startPos = Main.Position
     end
 end)
 
-Header.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = false
-    end
-end)
-
 UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragToggle then
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
         Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
 local Container = Instance.new("Frame", Main)
 Container.Size = UDim2.new(1, 0, 1, -60)
-Container.Position = UDim2.new(0, 0, 0, 55)
+Container.Position = UDim2.new(0, 0, 0, 60)
 Container.BackgroundTransparency = 1
-
-local UIList = Instance.new("UIListLayout", Container)
-UIList.Padding = UDim.new(0, 8)
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- Сворачивание кликом по названию
-Header.MouseButton2Click:Connect(function() -- ПКМ для сворачивания, ЛКМ для переноса
-    Flags.MenuOpen = not Flags.MenuOpen
-    local targetSize = Flags.MenuOpen and UDim2.new(0, 220, 0, 400) or UDim2.new(0, 220, 0, 50)
-    TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {Size = targetSize}):Play()
-    Container.Visible = Flags.MenuOpen
-end)
+Instance.new("UIListLayout", Container).Padding = UDim.new(0, 8)
+Container.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local function CreateToggle(name, flag)
     local btn = Instance.new("TextButton", Container)
     btn.Size = UDim2.new(0.9, 0, 0, 38)
-    btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(25, 25, 25)
+    btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30)
     btn.Text = name
     btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
     btn.Font = Enum.Font.GothamMedium
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     
     btn.MouseButton1Click:Connect(function()
         Flags[flag] = not Flags[flag]
-        btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(25, 25, 25)
+        btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30)
         btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
         if flag == "FOV_Enabled" then FOVCircle.Visible = Flags[flag] end
     end)
@@ -112,62 +101,49 @@ end
 
 CreateToggle("RAGE AIM", "Aimbot")
 CreateToggle("WHITE BOX ESP", "ESP")
-CreateToggle("WALLHACK", "Wallhack")
+CreateToggle("CHAMS WALLHACK", "Wallhack")
 CreateToggle("FOV CIRCLE", "FOV_Enabled")
 CreateToggle("TEAM CHECK", "TeamCheck")
 
--- Секция регуляторов СНИЗУ
+-- Секция регуляторов
 local Bottom = Instance.new("Frame", Container)
 Bottom.Size = UDim2.new(0.9, 0, 0, 70)
 Bottom.BackgroundTransparency = 1
 
 local RadLabel = Instance.new("TextLabel", Bottom)
-RadLabel.Size = UDim2.new(1, 0, 0, 25)
-RadLabel.Text = "FOV RADIUS: " .. Flags.Radius
-RadLabel.TextColor3 = Color3.new(1, 1, 1)
-RadLabel.Font = Enum.Font.GothamSemibold
-RadLabel.BackgroundTransparency = 1
+RadLabel.Size = UDim2.new(1, 0, 0, 25); RadLabel.Text = "FOV RADIUS: " .. Flags.Radius
+RadLabel.TextColor3 = Color3.new(1, 1, 1); RadLabel.Font = Enum.Font.GothamSemibold; RadLabel.BackgroundTransparency = 1
 
-local BtnH = Instance.new("Frame", Bottom)
-BtnH.Size = UDim2.new(1, 0, 0, 40)
-BtnH.Position = UDim2.new(0, 0, 0, 25)
-BtnH.BackgroundTransparency = 1
-
+local BtnH = Instance.new("Frame", Bottom); BtnH.Size = UDim2.new(1, 0, 0, 40); BtnH.Position = UDim2.new(0, 0, 0, 25); BtnH.BackgroundTransparency = 1
 local function CreateAdj(t, x, d)
-    local b = Instance.new("TextButton", BtnH)
-    b.Size = UDim2.new(0.48, 0, 1, 0)
-    b.Position = UDim2.new(x, 0, 0, 0)
-    b.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    b.Text = t
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-    b.MouseButton1Click:Connect(function()
-        Flags.Radius = math.clamp(Flags.Radius + d, 10, 800)
-        RadLabel.Text = "FOV RADIUS: " .. Flags.Radius
-    end)
+    local b = Instance.new("TextButton", BtnH); b.Size = UDim2.new(0.48, 0, 1, 0); b.Position = UDim2.new(x, 0, 0, 0)
+    b.BackgroundColor3 = Color3.fromRGB(40, 40, 40); b.Text = t; b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function() Flags.Radius = math.clamp(Flags.Radius + d, 10, 800); RadLabel.Text = "FOV RADIUS: " .. Flags.Radius end)
 end
-CreateAdj("-", 0, -10)
-CreateAdj("+", 0.52, 10)
+CreateAdj("-", 0, -10); CreateAdj("+", 0.52, 10)
 
--- ESP ИСПРАВЛЕНИЯ
+-- ХУД И ЧАМСЫ
 local function AddESP(p)
     ESP_Data[p] = {
         Box = Drawing.new("Square"),
         BarBack = Drawing.new("Square"),
         Bar = Drawing.new("Square"),
-        Tag = Drawing.new("Text")
+        Tag = Drawing.new("Text"),
+        Highlight = Instance.new("Highlight") -- Wallhack контур
     }
     local d = ESP_Data[p]
-    d.Box.Color = Color3.new(1, 1, 1)
-    d.Tag.Color = Color3.new(1, 1, 1)
-    d.Tag.Outline = true
-    d.Tag.Center = true
-    d.Tag.Size = 15 -- Сделал крупнее для читабельности
-    d.Tag.Font = 2 -- Bold-шрифт для Drawing
-    d.BarBack.Filled = true
-    d.BarBack.Color = Color3.new(0, 0, 0)
-    d.Bar.Filled = true
+    d.Box.Color = Color3.new(1, 1, 1); d.Box.Thickness = 1
+    d.Tag.Color = Color3.new(1, 1, 1); d.Tag.Outline = true; d.Tag.Center = true
+    d.Tag.Size = 22 -- Большой шрифт
+    d.Tag.Font = 2
+    d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0, 0, 0); d.Bar.Filled = true
+    
+    d.Highlight.Enabled = false
+    d.Highlight.FillColor = Color3.new(1, 1, 1) -- Белый силуэт
+    d.Highlight.OutlineColor = Color3.new(1, 1, 1) -- Белая обводка
+    d.Highlight.FillTransparency = 0.5
+    d.Highlight.OutlineTransparency = 0
 end
 
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
@@ -177,10 +153,10 @@ RunService:BindToRenderStep("Semirax_Final", Enum.RenderPriority.Last.Value, fun
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
+    
+    -- Rage Aimbot
     local CurrentTarget = nil
     local MinDist = Flags.Radius
-
-    -- Rage Aim
     if Flags.Aimbot then
         for _, p in pairs(Players:GetPlayers()) do
             local char = p.Character
@@ -197,42 +173,36 @@ RunService:BindToRenderStep("Semirax_Final", Enum.RenderPriority.Last.Value, fun
         if CurrentTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, CurrentTarget.Position) end
     end
 
-    -- Стабильный ESP и Читабельный текст
+    -- Визуализация (ESP + Chams)
     for _, p in pairs(Players:GetPlayers()) do
         local d = ESP_Data[p]
         local char = p.Character
         if p ~= LocalPlayer and d and char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+            local isEnemy = (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team)
             local rootPos, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
-            if onScreen and Flags.ESP and (not Flags.TeamCheck or p.Team ~= LocalPlayer.Team) then
+
+            -- Chams Logic
+            d.Highlight.Parent = char
+            d.Highlight.Enabled = Flags.Wallhack and isEnemy
+
+            -- ESP Logic
+            if onScreen and Flags.ESP and isEnemy then
                 local top = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.7, 0))
                 local bottom = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position - Vector3.new(0, 3, 0))
-                local h = math.abs(top.Y - bottom.Y)
-                local w = h / 2
+                local h = math.abs(top.Y - bottom.Y); local w = h / 2
 
-                d.Box.Size = Vector2.new(w, h)
-                d.Box.Position = Vector2.new(rootPos.X - w/2, rootPos.Y - h/2)
-                d.Box.Visible = true
-
-                -- HP Bar
+                d.Box.Size = Vector2.new(w, h); d.Box.Position = Vector2.new(rootPos.X - w/2, rootPos.Y - h/2); d.Box.Visible = true
                 local hp = char.Humanoid.Health / char.Humanoid.MaxHealth
-                d.BarBack.Size = Vector2.new(4, h)
-                d.BarBack.Position = Vector2.new(rootPos.X - w/2 - 6, rootPos.Y - h/2)
-                d.BarBack.Visible = true
-                d.Bar.Size = Vector2.new(2, h * hp)
-                d.Bar.Position = Vector2.new(rootPos.X - w/2 - 5, (rootPos.Y + h/2) - (h * hp))
-                d.Bar.Color = Color3.fromHSV(hp * 0.3, 1, 1)
-                d.Bar.Visible = true
+                d.BarBack.Size = Vector2.new(4, h); d.BarBack.Position = Vector2.new(rootPos.X - w/2 - 6, rootPos.Y - h/2); d.BarBack.Visible = true
+                d.Bar.Size = Vector2.new(2, h * hp); d.Bar.Position = Vector2.new(rootPos.X - w/2 - 5, (rootPos.Y + h/2) - (h * hp)); d.Bar.Color = Color3.fromHSV(hp * 0.3, 1, 1); d.Bar.Visible = true
 
-                -- Улучшенный Текст (Ниже к игроку)
-                local tool = char:FindFirstChildOfClass("Tool")
-                d.Tag.Text = string.format("%s\n[%s]", p.Name, tool and tool.Name or "Hands")
-                d.Tag.Position = Vector2.new(rootPos.X, rootPos.Y - h/2 - 25) -- Опустил на 10 пикселей ниже
-                d.Tag.Visible = true
+                d.Tag.Text = string.format("%s\n[%s]", p.Name, char:FindFirstChildOfClass("Tool") and char:FindFirstChildOfClass("Tool").Name or "Hands")
+                d.Tag.Position = Vector2.new(rootPos.X, rootPos.Y - h/2 - 35); d.Tag.Visible = true
             else
                 d.Box.Visible = false; d.Bar.Visible = false; d.BarBack.Visible = false; d.Tag.Visible = false
             end
         elseif d then
-            d.Box.Visible = false; d.Bar.Visible = false; d.BarBack.Visible = false; d.Tag.Visible = false
+            d.Box.Visible = false; d.Bar.Visible = false; d.BarBack.Visible = false; d.Tag.Visible = false; d.Highlight.Enabled = false
         end
     end
 end)
