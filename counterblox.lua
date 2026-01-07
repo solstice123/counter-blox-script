@@ -16,6 +16,7 @@ local Flags = {
     FOV_Enabled = true,
     TeamCheck = true,
     GodMode = false,
+    BHOP = true, -- НОВАЯ ФУНКЦИЯ
     Radius = 40
 }
 
@@ -28,11 +29,11 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V14_Minimal"
+ScreenGui.Name = "Semirax_V15_Bhop"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 220, 0, 460)
-Main.Position = UDim2.new(0.5, -110, 0.4, -230)
+Main.Size = UDim2.new(0, 220, 0, 500) -- Немного увеличил высоту под новую кнопку
+Main.Position = UDim2.new(0.5, -110, 0.4, -250)
 Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
@@ -75,7 +76,7 @@ Container.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local function CreateToggle(name, flag)
     local btn = Instance.new("TextButton", Container)
-    btn.Size = UDim2.new(0.9, 0, 0, 38)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
     btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30)
     btn.Text = name
     btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
@@ -95,6 +96,7 @@ CreateToggle("TEAM CHAMS", "Wallhack")
 CreateToggle("FOV CIRCLE", "FOV_Enabled")
 CreateToggle("TEAM CHECK", "TeamCheck")
 CreateToggle("INF HEALTH", "GodMode")
+CreateToggle("BUNNY HOP", "BHOP") -- Кнопка BHOP
 
 local Bottom = Instance.new("Frame", Container)
 Bottom.Size = UDim2.new(0.9, 0, 0, 70)
@@ -141,20 +143,15 @@ local function AddESP(p)
     local d = ESP_Data[p]
     d.Box.Thickness = 1.5
     d.Box.Color = Color3.new(1, 1, 1)
-    
-    d.Tag.Size = 14 -- ЕЩЕ МЕНЬШЕ ТЕКСТ
+    d.Tag.Size = 14
     d.Tag.Color = Color3.new(1, 1, 1)
     d.Tag.Outline = true
     d.Tag.Center = true
-    
     d.BarBack.Filled = true
     d.BarBack.Color = Color3.new(0, 0, 0)
     d.BarBack.Transparency = 0.6
-    
     d.Bar.Filled = true
-    d.Bar.Color = Color3.fromRGB(0, 255, 0) -- ЗЕЛЕНЫЙ ХПБАР
-    
-    d.Highlight.FillTransparency = 0.4
+    d.Bar.Color = Color3.fromRGB(0, 255, 0)
 end
 
 local function RemoveESP(p)
@@ -171,11 +168,16 @@ Players.PlayerAdded:Connect(AddESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 
 RunService.RenderStepped:Connect(function()
-    -- УЛЬТРА INF HEALTH: СТАВИТ 100 ХП КАЖДЫЙ КАДР
+    -- INF HEALTH (100 HP КАЖДЫЙ КАДР)
     if Flags.GodMode and LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then 
-            hum.Health = 100 
+        if hum then hum.Health = 100 end
+    end
+
+    -- BHOP ЛОГИКА
+    if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Jump = true
         end
     end
 
@@ -219,7 +221,6 @@ RunService.RenderStepped:Connect(function()
                     d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1))
                     d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
 
-                    -- УБРАНА НАДПИСЬ ПРЕДМЕТА, ТОЛЬКО ИМЯ
                     d.Tag.Visible = true
                     d.Tag.Text = p.Name
                     d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 20)
