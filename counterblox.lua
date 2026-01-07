@@ -6,13 +6,13 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- 1. СИСТЕМА ОЧИСТКИ
+-- 1. ЖЕСТКАЯ ОЧИСТКА
 if _G.ZOA_Circle then pcall(function() _G.ZOA_Circle:Destroy() end) _G.ZOA_Circle = nil end
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("Semirax") or v.Name:find("ZOA") then v:Destroy() end
 end
-if _G.Old_ESP_Data then
-    for _, p_esp in pairs(_G.Old_ESP_Data) do
+if _G.Old_ESP then
+    for _, p_esp in pairs(_G.Old_ESP) do
         for _, obj in pairs(p_esp) do pcall(function() if obj.Remove then obj:Remove() end end) end
     end
 end
@@ -23,20 +23,19 @@ local Flags = {
 }
 local Binds = {}
 local ESP_Data = {}
-_G.Old_ESP_Data = ESP_Data
+_G.Old_ESP = ESP_Data
 
--- Переменные для BHOP ускорения
 local CurrentSpeed = 16
 local LastSpeedUpdate = tick()
 
 -- 2. ИНТЕРФЕЙС
-local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_Speed_V9"
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_Final_Code"
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 240, 0, 480); Main.Position = UDim2.new(0.5, -120, 0.4, -240); Main.BackgroundColor3 = Color3.fromRGB(10, 10, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.BackgroundTransparency = 1
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
 local Gradient = Instance.new("UIGradient", Main)
-Gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(5, 5, 20)), ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 55, 120))})
+Gradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(5, 5, 20)), ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 50, 130))})
 Gradient.Rotation = 45
 
 local IntroText = Instance.new("TextLabel", Main)
@@ -54,7 +53,7 @@ task.spawn(function()
     task.wait(0.4); IntroText:Destroy(); Content.Visible = true
 end)
 
--- УПРАВЛЕНИЕ ОКНОМ
+-- ПЕРЕТАСКИВАНИЕ И ДВОЙНОЙ КЛИК
 local dragging, dragStart, startPos, lastClick = false, nil, nil, 0
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -71,7 +70,7 @@ UserInputService.InputEnded:Connect(function(input) if input.UserInputType == En
 
 -- ТАБЫ
 local TabContainer = Instance.new("Frame", Content); TabContainer.Size = UDim2.new(1, -20, 0, 30); TabContainer.Position = UDim2.new(0, 10, 0, 50); TabContainer.BackgroundTransparency = 1
-local FuncBtn = Instance.new("TextButton", TabContainer); FuncBtn.Size = UDim2.new(0.5, -5, 1, 0); FuncBtn.Text = "FUNCTIONS"; FuncBtn.BackgroundColor3 = Color3.fromRGB(40, 65, 150); FuncBtn.TextColor3 = Color3.new(1,1,1); FuncBtn.Font = Enum.Font.GothamBold; FuncBtn.TextSize = 11; Instance.new("UICorner", FuncBtn)
+local FuncBtn = Instance.new("TextButton", TabContainer); FuncBtn.Size = UDim2.new(0.5, -5, 1, 0); FuncBtn.Text = "FUNCTIONS"; FuncBtn.BackgroundColor3 = Color3.fromRGB(40, 60, 140); FuncBtn.TextColor3 = Color3.new(1,1,1); FuncBtn.Font = Enum.Font.GothamBold; FuncBtn.TextSize = 11; Instance.new("UICorner", FuncBtn)
 local BindBtn = Instance.new("TextButton", TabContainer); BindBtn.Position = UDim2.new(0.5, 5, 0, 0); BindBtn.Size = UDim2.new(0.5, -5, 1, 0); BindBtn.Text = "BINDS"; BindBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30); BindBtn.TextColor3 = Color3.new(0.6,0.6,0.6); BindBtn.Font = Enum.Font.GothamBold; BindBtn.TextSize = 11; Instance.new("UICorner", BindBtn)
 
 local FuncPage = Instance.new("ScrollingFrame", Content); FuncPage.Size = UDim2.new(1, -20, 1, -100); FuncPage.Position = UDim2.new(0, 10, 0, 90); FuncPage.BackgroundTransparency = 1; FuncPage.ScrollBarThickness = 0
@@ -80,8 +79,8 @@ local BindPage = Instance.new("ScrollingFrame", Content); BindPage.Size = UDim2.
 local function SetupPage(p) Instance.new("UIListLayout", p).Padding = UDim.new(0, 8); Instance.new("UIPadding", p).PaddingTop = UDim.new(0, 5) end
 SetupPage(FuncPage); SetupPage(BindPage)
 
-FuncBtn.MouseButton1Click:Connect(function() FuncPage.Visible = true; BindPage.Visible = false; TweenService:Create(FuncBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 65, 150)}):Play(); TweenService:Create(BindBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play() end)
-BindBtn.MouseButton1Click:Connect(function() FuncPage.Visible = false; BindPage.Visible = true; TweenService:Create(BindBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 65, 150)}):Play(); TweenService:Create(FuncBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play() end)
+FuncBtn.MouseButton1Click:Connect(function() FuncPage.Visible = true; BindPage.Visible = false; TweenService:Create(FuncBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 60, 140)}):Play(); TweenService:Create(BindBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play() end)
+BindBtn.MouseButton1Click:Connect(function() FuncPage.Visible = false; BindPage.Visible = true; TweenService:Create(BindBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 60, 140)}):Play(); TweenService:Create(FuncBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play() end)
 
 local function CreateElement(name, flag)
     local btn = Instance.new("TextButton", FuncPage); btn.Size = UDim2.new(1, 0, 0, 35); btn.BackgroundColor3 = Flags[flag] and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(30, 30, 45); btn.Text = name; btn.TextColor3 = Color3.new(1,1,1); btn.Font = Enum.Font.GothamMedium; btn.TextSize = 13; Instance.new("UICorner", btn)
@@ -105,12 +104,16 @@ CreateSlider("ZOA RADIUS", "Radius", 10, 600, 10); CreateSlider("FIELD OF VIEW",
 -- ЛОГИКА
 UserInputService.InputBegan:Connect(function(i, g) if not g and Binds[i.KeyCode] then local d = Binds[i.KeyCode]; Flags[d.Flag] = not Flags[d.Flag]; local col = Flags[d.Flag] and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(30, 30, 45); TweenService:Create(d.Button, TweenInfo.new(0.3), {BackgroundColor3 = col}):Play() end end)
 
-local FOVCircle = Drawing.new("Circle"); FOVCircle.Thickness = 2; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 0.8; _G.ZOA_Circle = FOVCircle
+local FOVCircle = Drawing.new("Circle"); FOVCircle.Thickness = 2; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 1; _G.ZOA_Circle = FOVCircle
 
 local function AddESP(p)
     if ESP_Data[p] then return end
     ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
-    local d = ESP_Data[p]; d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1); d.Tag.Size = 13; d.Tag.Outline = true; d.Tag.Center = true; d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(1,1,1), 0.5; d.Bar.Filled = true
+    local d = ESP_Data[p]
+    d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1)
+    d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true -- БЕЛЫЙ НИК
+    d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(0,0,0), 0.5
+    d.Bar.Filled = true
 end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP)
@@ -119,20 +122,13 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Position = UserInputService:GetMouseLocation(); FOVCircle.Radius = Flags.Radius; FOVCircle.Visible = Flags.ZOA_Visible
     Camera.FieldOfView = Flags.CustomFOV
     
-    -- SPEED BHOP ЛОГИКА
     local Char = LocalPlayer.Character; local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     if Char and Hum then
         if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             Hum.Jump = true
-            if tick() - LastSpeedUpdate >= 1 then
-                CurrentSpeed = math.clamp(CurrentSpeed + 3, 16, 120)
-                LastSpeedUpdate = tick()
-            end
+            if tick() - LastSpeedUpdate >= 1 then CurrentSpeed = math.clamp(CurrentSpeed + 3, 16, 120); LastSpeedUpdate = tick() end
             Hum.WalkSpeed = CurrentSpeed
-        else
-            CurrentSpeed = 16
-            Hum.WalkSpeed = 16
-        end
+        else CurrentSpeed = 16; Hum.WalkSpeed = 16 end
     end
 
     local Target, MinDist, MousePos = nil, Flags.Radius, UserInputService:GetMouseLocation()
@@ -147,8 +143,9 @@ RunService.RenderStepped:Connect(function()
                     local tP = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0)); local bP = Camera:WorldToViewportPoint(r.Position - Vector3.new(0, 3, 0)); local height = math.abs(tP.Y - bP.Y)
                     d.Box.Visible, d.Box.Size, d.Box.Position = true, Vector2.new(height/2, height), Vector2.new(pos.X - height/4, pos.Y - height/2)
                     d.BarBack.Visible, d.BarBack.Size, d.BarBack.Position = true, Vector2.new(4, height), Vector2.new(pos.X - height/4 - 6, pos.Y - height/2)
-                    d.Bar.Visible, d.Bar.Size, d.Bar.Position = true, Vector2.new(2, height * (h.Health/h.MaxHealth)), Vector2.new(pos.X - height/4 - 5, (pos.Y + height/2) - (height * (h.Health/h.MaxHealth))); d.Bar.Color = Color3.fromHSV(h.Health/h.MaxHealth * 0.3, 1, 1)
-                    d.Tag.Visible, d.Tag.Text, d.Tag.Position = true, p.Name, Vector2.new(pos.X, pos.Y - height/2 - 18)
+                    d.Bar.Visible, d.Bar.Size, d.Bar.Position = true, Vector2.new(2, height * (h.Health/h.MaxHealth)), Vector2.new(pos.X - height/4 - 5, (pos.Y + height/2) - (height * (h.Health/h.MaxHealth)))
+                    d.Bar.Color = Color3.fromHSV(h.Health/h.MaxHealth * 0.3, 1, 1) -- ЗЕЛЕНЫЙ -> КРАСНЫЙ
+                    d.Tag.Visible, d.Tag.Text, d.Tag.Position = true, p.Name, Vector2.new(pos.X, pos.Y - height/2 - 20)
                     if Flags.Aimbot and isEnemy then local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude; if dist < MinDist then MinDist = dist; Target = head end end
                 end
             else d.Box.Visible, d.Tag.Visible, d.Bar.Visible, d.BarBack.Visible = false, false, false, false end
