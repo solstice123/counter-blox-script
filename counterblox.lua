@@ -16,7 +16,9 @@ local Flags = {
     FOV_Enabled = true,
     TeamCheck = true,
     GodMode = false,
-    BHOP = true, -- НОВАЯ ФУНКЦИЯ
+    BHOP = true,
+    SpeedHack = false,
+    SpeedMult = 50,
     Radius = 40
 }
 
@@ -29,11 +31,11 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V15_Bhop"
+ScreenGui.Name = "Semirax_V16_Speed"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 220, 0, 500) -- Немного увеличил высоту под новую кнопку
-Main.Position = UDim2.new(0.5, -110, 0.4, -250)
+Main.Size = UDim2.new(0, 220, 0, 560)
+Main.Position = UDim2.new(0.5, -110, 0.4, -280)
 Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
@@ -76,7 +78,7 @@ Container.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local function CreateToggle(name, flag)
     local btn = Instance.new("TextButton", Container)
-    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Size = UDim2.new(0.9, 0, 0, 32)
     btn.BackgroundColor3 = Flags[flag] and Color3.new(1, 1, 1) or Color3.fromRGB(30, 30, 30)
     btn.Text = name
     btn.TextColor3 = Flags[flag] and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
@@ -96,71 +98,41 @@ CreateToggle("TEAM CHAMS", "Wallhack")
 CreateToggle("FOV CIRCLE", "FOV_Enabled")
 CreateToggle("TEAM CHECK", "TeamCheck")
 CreateToggle("INF HEALTH", "GodMode")
-CreateToggle("BUNNY HOP", "BHOP") -- Кнопка BHOP
+CreateToggle("BUNNY HOP", "BHOP")
+CreateToggle("SPEED HACK", "SpeedHack")
 
-local Bottom = Instance.new("Frame", Container)
-Bottom.Size = UDim2.new(0.9, 0, 0, 70)
-Bottom.BackgroundTransparency = 1
-
-local RadLabel = Instance.new("TextLabel", Bottom)
-RadLabel.Size = UDim2.new(1, 0, 0, 25)
-RadLabel.Text = "FOV RADIUS: " .. Flags.Radius
-RadLabel.TextColor3 = Color3.new(1, 1, 1)
-RadLabel.Font = Enum.Font.GothamSemibold
-RadLabel.BackgroundTransparency = 1
-
-local BtnH = Instance.new("Frame", Bottom)
-BtnH.Size = UDim2.new(1, 0, 0, 40)
-BtnH.Position = UDim2.new(0, 0, 0, 25)
-BtnH.BackgroundTransparency = 1
-
-local function CreateAdj(t, x, d)
-    local b = Instance.new("TextButton", BtnH)
-    b.Size = UDim2.new(0.48, 0, 1, 0)
-    b.Position = UDim2.new(x, 0, 0, 0)
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    b.Text = t
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    b.MouseButton1Click:Connect(function() 
-        Flags.Radius = math.clamp(Flags.Radius + d, 10, 800)
-        RadLabel.Text = "FOV RADIUS: " .. Flags.Radius 
-    end)
+local SpeedAdj = Instance.new("Frame", Container)
+SpeedAdj.Size = UDim2.new(0.9, 0, 0, 60)
+SpeedAdj.BackgroundTransparency = 1
+local SpeedLabel = Instance.new("TextLabel", SpeedAdj)
+SpeedLabel.Size = UDim2.new(1, 0, 0, 20); SpeedLabel.Text = "SPEED: " .. Flags.SpeedMult; SpeedLabel.TextColor3 = Color3.new(1, 1, 1); SpeedLabel.Font = Enum.Font.GothamSemibold; SpeedLabel.BackgroundTransparency = 1
+local SpdBtnH = Instance.new("Frame", SpeedAdj); SpdBtnH.Size = UDim2.new(1, 0, 0, 35); SpdBtnH.Position = UDim2.new(0, 0, 0, 25); SpdBtnH.BackgroundTransparency = 1
+local function CreateSpd(t, x, d)
+    local b = Instance.new("TextButton", SpdBtnH); b.Size = UDim2.new(0.48, 0, 1, 0); b.Position = UDim2.new(x, 0, 0, 0); b.BackgroundColor3 = Color3.fromRGB(40, 40, 40); b.Text = t; b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamBold; Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function() Flags.SpeedMult = math.clamp(Flags.SpeedMult + d, 16, 500); SpeedLabel.Text = "SPEED: " .. Flags.SpeedMult end)
 end
-CreateAdj("-", 0, -10)
-CreateAdj("+", 0.52, 10)
+CreateSpd("-", 0, -10); CreateSpd("+", 0.52, 10)
+
+local Bottom = Instance.new("Frame", Container); Bottom.Size = UDim2.new(0.9, 0, 0, 60); Bottom.BackgroundTransparency = 1
+local RadLabel = Instance.new("TextLabel", Bottom); RadLabel.Size = UDim2.new(1, 0, 0, 20); RadLabel.Text = "FOV RADIUS: " .. Flags.Radius; RadLabel.TextColor3 = Color3.new(1, 1, 1); RadLabel.Font = Enum.Font.GothamSemibold; RadLabel.BackgroundTransparency = 1
+local BtnH = Instance.new("Frame", Bottom); BtnH.Size = UDim2.new(1, 0, 0, 35); BtnH.Position = UDim2.new(0, 0, 0, 20); BtnH.BackgroundTransparency = 1
+local function CreateAdj(t, x, d)
+    local b = Instance.new("TextButton", BtnH); b.Size = UDim2.new(0.48, 0, 1, 0); b.Position = UDim2.new(x, 0, 0, 0); b.BackgroundColor3 = Color3.fromRGB(40, 40, 40); b.Text = t; b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamBold; Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function() Flags.Radius = math.clamp(Flags.Radius + d, 10, 800); RadLabel.Text = "FOV RADIUS: " .. Flags.Radius end)
+end
+CreateAdj("-", 0, -10); CreateAdj("+", 0.52, 10)
 
 local function AddESP(p)
     if ESP_Data[p] then return end
-    ESP_Data[p] = {
-        Box = Drawing.new("Square"),
-        BarBack = Drawing.new("Square"),
-        Bar = Drawing.new("Square"),
-        Tag = Drawing.new("Text"),
-        Highlight = Instance.new("Highlight")
-    }
+    ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
     local d = ESP_Data[p]
-    d.Box.Thickness = 1.5
-    d.Box.Color = Color3.new(1, 1, 1)
-    d.Tag.Size = 14
-    d.Tag.Color = Color3.new(1, 1, 1)
-    d.Tag.Outline = true
-    d.Tag.Center = true
-    d.BarBack.Filled = true
-    d.BarBack.Color = Color3.new(0, 0, 0)
-    d.BarBack.Transparency = 0.6
-    d.Bar.Filled = true
-    d.Bar.Color = Color3.fromRGB(0, 255, 0)
+    d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1, 1, 1); d.Tag.Size = 14; d.Tag.Color = Color3.new(1, 1, 1); d.Tag.Outline = true; d.Tag.Center = true
+    d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0, 0, 0); d.BarBack.Transparency = 0.6; d.Bar.Filled = true; d.Bar.Color = Color3.fromRGB(0, 255, 0); d.Highlight.FillTransparency = 0.4
 end
 
 local function RemoveESP(p)
     local d = ESP_Data[p]
-    if d then
-        d.Box:Remove() d.BarBack:Remove() d.Bar:Remove() d.Tag:Remove()
-        if d.Highlight then d.Highlight:Destroy() end
-        ESP_Data[p] = nil
-    end
+    if d then d.Box:Remove() d.BarBack:Remove() d.Bar:Remove() d.Tag:Remove() if d.Highlight then d.Highlight:Destroy() end ESP_Data[p] = nil end
 end
 
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
@@ -168,74 +140,38 @@ Players.PlayerAdded:Connect(AddESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 
 RunService.RenderStepped:Connect(function()
-    -- INF HEALTH (100 HP КАЖДЫЙ КАДР)
-    if Flags.GodMode and LocalPlayer.Character then
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 100 end
+        if Flags.GodMode then hum.Health = 100 end
+        if Flags.SpeedHack then hum.WalkSpeed = Flags.SpeedMult else hum.WalkSpeed = 16 end
+        if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then hum.Jump = true end
     end
 
-    -- BHOP ЛОГИКА
-    if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Jump = true
-        end
-    end
-
-    FOVCircle.Position = UserInputService:GetMouseLocation()
-    FOVCircle.Radius = Flags.Radius
+    FOVCircle.Position = UserInputService:GetMouseLocation(); FOVCircle.Radius = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
-    local Target = nil
-    local MinDist = Flags.Radius
+    local Target = nil; local MinDist = Flags.Radius
 
     for p, d in pairs(ESP_Data) do
-        local char = p.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-
+        local char = p.Character; local hum = char and char:FindFirstChildOfClass("Humanoid"); local root = char and char:FindFirstChild("HumanoidRootPart")
         if char and hum and root and hum.Health > 0 then
-            local isEnemy = (p.Team ~= LocalPlayer.Team)
-            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-
-            d.Highlight.Parent = char
-            d.Highlight.Enabled = Flags.Wallhack
-            d.Highlight.FillColor = isEnemy and Color3.new(1, 0, 0) or Color3.new(0, 0.5, 1)
-            d.Highlight.OutlineColor = Color3.new(1, 1, 1)
-
+            local isEnemy = (p.Team ~= LocalPlayer.Team); local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            d.Highlight.Parent = char; d.Highlight.Enabled = Flags.Wallhack; d.Highlight.FillColor = isEnemy and Color3.new(1, 0, 0) or Color3.new(0, 0.5, 1); d.Highlight.OutlineColor = Color3.new(1, 1, 1)
             if onScreen and Flags.ESP and (not Flags.TeamCheck or isEnemy) then
                 local head = char:FindFirstChild("Head")
                 if head then
-                    local tPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
-                    local bPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                    local h = math.abs(tPos.Y - bPos.Y)
-                    local w = h / 2
-
-                    d.Box.Visible = true
-                    d.Box.Size = Vector2.new(w, h)
-                    d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
-
-                    d.BarBack.Visible = true
-                    d.BarBack.Size = Vector2.new(4, h)
-                    d.BarBack.Position = Vector2.new(pos.X - w/2 - 6, pos.Y - h/2)
-
-                    d.Bar.Visible = true
-                    d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1))
-                    d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
-
-                    d.Tag.Visible = true
-                    d.Tag.Text = p.Name
-                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 20)
-
+                    local tPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0)); local bPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                    local h = math.abs(tPos.Y - bPos.Y); local w = h / 2
+                    d.Box.Visible = true; d.Box.Size = Vector2.new(w, h); d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
+                    d.BarBack.Visible = true; d.BarBack.Size = Vector2.new(4, h); d.BarBack.Position = Vector2.new(pos.X - w/2 - 6, pos.Y - h/2)
+                    d.Bar.Visible = true; d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1)); d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
+                    d.Tag.Visible = true; d.Tag.Text = p.Name; d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 20)
                     if Flags.Aimbot and isEnemy then
                         local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
                         if dist < MinDist then MinDist = dist Target = head end
                     end
                 end
-            else
-                d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false
-            end
-        else
-            d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false d.Highlight.Enabled = false
-        end
+            else d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false end
+        else d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false d.Highlight.Enabled = false end
     end
     if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
 end)
