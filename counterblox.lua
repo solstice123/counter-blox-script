@@ -110,7 +110,7 @@ local FOVCircle = Drawing.new("Circle"); FOVCircle.Thickness = 2; FOVCircle.Colo
 local function AddESP(p)
     if ESP_Data[p] then return end
     ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
-    local d = ESP_Data[p]; d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1); d.Tag.Size = 13; d.Tag.Outline = true; d.Tag.Center = true; d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(0,0,0), 0.5; d.Bar.Filled = true
+    local d = ESP_Data[p]; d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1); d.Tag.Size = 13; d.Tag.Outline = true; d.Tag.Center = true; d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(1,1,1), 0.5; d.Bar.Filled = true
 end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP)
