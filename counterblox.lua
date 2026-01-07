@@ -6,14 +6,15 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- Очистка старых версий
 for _, v in pairs(CoreGui:GetChildren()) do
     if v.Name:find("ZOA") or v.Name:find("Semirax") then v:Destroy() end
 end
 
 local Flags = {
     Aimbot = true, ESP = true, Wallhack = true, TeamCheck = true, 
-    GodMode = false, BHOP = true, Radius = 30, FOV_Visible = true, 
-    MenuOpen = true, CustomFOV = 70, CircleThick = 1.5
+    GodMode = false, BHOP = true, Radius = 80, FOV_Visible = true, 
+    MenuOpen = true, CustomFOV = 70, CircleThick = 1.5, NetOptimize = true
 }
 
 local Binds = {} 
@@ -25,31 +26,34 @@ local LastSpeedUpdate = tick()
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = Flags.CircleThick; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 0.7; FOVCircle.Filled = false
 
+-- ИНТЕРФЕЙС ZOA
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "ZOA_CHEAT_V1"
+ScreenGui.Name = "ZOA_ULTIMATE_FINAL"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 230, 0, 480); Main.Position = UDim2.new(0.5, -115, 0.4, -240); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.Active = true
+Main.Size = UDim2.new(0, 230, 0, 520); Main.Position = UDim2.new(0.5, -115, 0.4, -260); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
 local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Color3.new(1, 1, 1); Header.Text = "ZOA CHEAT"; Header.TextColor3 = Color3.new(0, 0, 0); Header.Font = Enum.Font.GothamBold; Header.TextSize = 16; Header.Active = true; Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
--- Dragging
+-- ЛОГИКА ПЕРЕТАСКИВАНИЯ
 local dragging, dragStart, startPos
 Header.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = Main.Position end end)
 UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then local delta = input.Position - dragStart; Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
+-- СВОРАЧИВАНИЕ (Двойной клик)
 local lastClick = 0
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 and tick() - lastClick < 0.3 then
         Flags.MenuOpen = not Flags.MenuOpen
-        TweenService:Create(Main, TweenInfo.new(0.3), {Size = Flags.MenuOpen and UDim2.new(0, 230, 0, 480) or UDim2.new(0, 230, 0, 40)}):Play()
+        TweenService:Create(Main, TweenInfo.new(0.3), {Size = Flags.MenuOpen and UDim2.new(0, 230, 0, 520) or UDim2.new(0, 230, 0, 40)}):Play()
     end
     lastClick = tick()
 end)
 
+-- ВКЛАДКИ
 local Tabs = Instance.new("Frame", Main); Tabs.Size = UDim2.new(1, 0, 0, 35); Tabs.Position = UDim2.new(0, 0, 0, 45); Tabs.BackgroundTransparency = 1
 local fTabBtn = Instance.new("TextButton", Tabs); fTabBtn.Size = UDim2.new(0.5, 0, 1, 0); fTabBtn.Text = "FUNCTIONS"; fTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30); fTabBtn.TextColor3 = Color3.new(1,1,1); fTabBtn.Font = Enum.Font.GothamBold
 local bTabBtn = Instance.new("TextButton", Tabs); bTabBtn.Size = UDim2.new(0.5, 0, 1, 0); bTabBtn.Position = UDim2.new(0.5, 0, 0, 0); bTabBtn.Text = "BINDS"; bTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); bTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6); bTabBtn.Font = Enum.Font.GothamBold
@@ -57,7 +61,7 @@ local bTabBtn = Instance.new("TextButton", Tabs); bTabBtn.Size = UDim2.new(0.5, 
 local FuncPage = Instance.new("ScrollingFrame", Main); FuncPage.Size = UDim2.new(1, 0, 1, -90); FuncPage.Position = UDim2.new(0, 0, 0, 85); FuncPage.BackgroundTransparency = 1; FuncPage.ScrollBarThickness = 0
 local BindPage = Instance.new("ScrollingFrame", Main); BindPage.Size = UDim2.new(1, 0, 1, -90); BindPage.Position = UDim2.new(0, 0, 0, 85); BindPage.BackgroundTransparency = 1; BindPage.ScrollBarThickness = 0; BindPage.Visible = false
 
--- Отступы
+-- ОТСТУПЫ (Padding)
 for _, page in pairs({FuncPage, BindPage}) do
     local L = Instance.new("UIListLayout", page); L.Padding = UDim.new(0, 8); L.HorizontalAlignment = "Center"
     local P = Instance.new("UIPadding", page); P.PaddingTop = UDim.new(0, 10); P.PaddingBottom = UDim.new(0, 10)
@@ -67,24 +71,31 @@ fTabBtn.MouseButton1Click:Connect(function() FuncPage.Visible = true; BindPage.V
 bTabBtn.MouseButton1Click:Connect(function() FuncPage.Visible = false; BindPage.Visible = true end)
 
 local function CreateElement(name, flag)
-    local btn = Instance.new("TextButton", FuncPage); btn.Size = UDim2.new(0.9, 0, 0, 35); btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); btn.Text = name; btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1); btn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    local btn = Instance.new("TextButton", FuncPage); btn.Size = UDim2.new(0.9, 0, 0, 32); btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); btn.Text = name; btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1); btn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
     btn.MouseButton1Click:Connect(function() Flags[flag] = not Flags[flag]; btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1) end)
-    local bBtn = Instance.new("TextButton", BindPage); bBtn.Size = UDim2.new(0.9, 0, 0, 35); bBtn.BackgroundColor3 = Color3.fromRGB(25,25,25); bBtn.TextColor3 = Color3.new(1,1,1); bBtn.Text = name .. ": NONE"; bBtn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", bBtn).CornerRadius = UDim.new(0, 4)
-    bBtn.MouseButton1Click:Connect(function() bBtn.Text = "..."; local c; c = UserInputService.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then Binds[i.KeyCode] = {Flag = flag, Button = btn, BindBtn = bBtn}; bBtn.Text = name .. ": " .. i.KeyCode.Name; c:Disconnect() end end) end)
+    
+    local bBtn = Instance.new("TextButton", BindPage); bBtn.Size = UDim2.new(0.9, 0, 0, 32); bBtn.BackgroundColor3 = Color3.fromRGB(25,25,25); bBtn.TextColor3 = Color3.new(1,1,1); bBtn.Text = name .. ": NONE"; bBtn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", bBtn).CornerRadius = UDim.new(0, 4)
+    bBtn.MouseButton1Click:Connect(function() bBtn.Text = "..."; local c; c = UserInputService.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then Binds[i.KeyCode] = {Flag = flag, Button = btn}; bBtn.Text = name .. ": " .. i.KeyCode.Name; c:Disconnect() end end) end)
 end
 
-local feats = {"Aimbot", "ESP", "Wallhack", "GodMode", "BHOP", "FOV_Visible"}
+local feats = {"Aimbot", "ESP", "Wallhack", "GodMode", "BHOP", "FOV_Visible", "NetOptimize"}
 for _, v in pairs(feats) do CreateElement(v, v) end
 
--- Настройка Толщины Круга
-local ThickFrame = Instance.new("Frame", FuncPage); ThickFrame.Size = UDim2.new(0.9, 0, 0, 50); ThickFrame.BackgroundTransparency = 1
-local ThickLabel = Instance.new("TextLabel", ThickFrame); ThickLabel.Size = UDim2.new(1, 0, 0, 20); ThickLabel.Text = "CIRCLE THICK: " .. Flags.CircleThick; ThickLabel.TextColor3 = Color3.new(1,1,1); ThickLabel.BackgroundTransparency = 1; ThickLabel.Font = Enum.Font.GothamSemibold
-local TM = Instance.new("TextButton", ThickFrame); TM.Size = UDim2.new(0.48, 0, 0, 25); TM.Position = UDim2.new(0,0,0,25); TM.Text = "-"; TM.BackgroundColor3 = Color3.fromRGB(40,40,40); TM.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", TM).CornerRadius = UDim.new(0,4)
-local TP = Instance.new("TextButton", ThickFrame); TP.Size = UDim2.new(0.48, 0, 0, 25); TP.Position = UDim2.new(0.52,0,0,25); TP.Text = "+"; TP.BackgroundColor3 = Color3.fromRGB(40,40,40); TP.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", TP).CornerRadius = UDim.new(0,4)
-TM.MouseButton1Click:Connect(function() Flags.CircleThick = math.clamp(Flags.CircleThick - 0.5, 0.5, 10); ThickLabel.Text = "CIRCLE THICK: " .. Flags.CircleThick end)
-TP.MouseButton1Click:Connect(function() Flags.CircleThick = math.clamp(Flags.CircleThick + 0.5, 0.5, 10); ThickLabel.Text = "CIRCLE THICK: " .. Flags.CircleThick end)
+-- НАСТРОЙКИ FOV И КРУГА
+local function AddSlider(label_text, flag, min, max, step)
+    local F = Instance.new("Frame", FuncPage); F.Size = UDim2.new(0.9, 0, 0, 50); F.BackgroundTransparency = 1
+    local L = Instance.new("TextLabel", F); L.Size = UDim2.new(1, 0, 0, 20); L.Text = label_text .. ": " .. Flags[flag]; L.TextColor3 = Color3.new(1,1,1); L.BackgroundTransparency = 1; L.Font = Enum.Font.GothamSemibold
+    local M = Instance.new("TextButton", F); M.Size = UDim2.new(0.48, 0, 0, 25); M.Position = UDim2.new(0,0,0,22); M.Text = "-"; M.BackgroundColor3 = Color3.fromRGB(40,40,40); M.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", M).CornerRadius = UDim.new(0,4)
+    local P = Instance.new("TextButton", F); P.Size = UDim2.new(0.48, 0, 0, 25); P.Position = UDim2.new(0.52,0,0,22); P.Text = "+"; P.BackgroundColor3 = Color3.fromRGB(40,40,40); P.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", P).CornerRadius = UDim.new(0,4)
+    M.MouseButton1Click:Connect(function() Flags[flag] = math.clamp(Flags[flag] - step, min, max); L.Text = label_text .. ": " .. Flags[flag] end)
+    P.MouseButton1Click:Connect(function() Flags[flag] = math.clamp(Flags[flag] + step, min, max); L.Text = label_text .. ": " .. Flags[flag] end)
+end
 
--- ESP & Logic
+AddSlider("FOV RADIUS", "Radius", 10, 600, 10)
+AddSlider("SCREEN FOV", "CustomFOV", 30, 120, 5)
+AddSlider("CIRCLE THICK", "CircleThick", 0.5, 10, 0.5)
+
+-- ESP SYSTEM
 local function AddESP(p)
     if ESP_Data[p] then return end
     ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
@@ -95,20 +106,24 @@ function RemoveESP(p) if ESP_Data[p] then for _, v in pairs(ESP_Data[p]) do if v
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP); Players.PlayerRemoving:Connect(RemoveESP)
 
+-- БИНДЫ
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and Binds[input.KeyCode] then
+        local d = Binds[input.KeyCode]; Flags[d.Flag] = not Flags[d.Flag]
+        d.Button.BackgroundColor3 = Flags[d.Flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30)
+        d.Button.TextColor3 = Flags[d.Flag] and Color3.new(0,0,0) or Color3.new(1,1,1)
+    end
+end)
+
+-- ГЛАВНЫЙ ЦИКЛ ZOA
 RunService.RenderStepped:Connect(function()
+    if Flags.NetOptimize then settings().Network.IncomingReplicationLag = 0 end
+    Camera.FieldOfView = Flags.CustomFOV
     FOVCircle.Position = UserInputService:GetMouseLocation(); FOVCircle.Radius = Flags.Radius; FOVCircle.Visible = Flags.FOV_Visible; FOVCircle.Thickness = Flags.CircleThick
     
     local Char = LocalPlayer.Character; local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     if Hum then
-        if Flags.GodMode then 
-            Hum.Health = Hum.MaxHealth
-            if Hum.Health == 0 then -- Предотвращение смерти
-                for _, part in pairs(Char:GetChildren()) do if part:IsA("BasePart") then part.Anchored = true end end
-                task.wait(0.1)
-                Hum.Health = Hum.MaxHealth
-                for _, part in pairs(Char:GetChildren()) do if part:IsA("BasePart") then part.Anchored = false end end
-            end
-        end
+        if Flags.GodMode then Hum.Health = Hum.MaxHealth end
         if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             Hum.Jump = true; if tick() - LastSpeedUpdate >= 1 then CurrentSpeed = math.clamp(CurrentSpeed + 3, 16, 120); LastSpeedUpdate = tick() end; Hum.WalkSpeed = CurrentSpeed
         else CurrentSpeed = 16; Hum.WalkSpeed = 16 end
