@@ -28,7 +28,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V13_Final_Visual"
+ScreenGui.Name = "Semirax_V14_Minimal"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 220, 0, 460)
@@ -44,7 +44,6 @@ Header.Text = "SEMIRAX CHEAT"
 Header.TextColor3 = Color3.new(0, 0, 0)
 Header.Font = Enum.Font.GothamBold
 Header.TextSize = 18
-Header.Active = true
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
 
 local dragStart, startPos, dragging
@@ -143,17 +142,17 @@ local function AddESP(p)
     d.Box.Thickness = 1.5
     d.Box.Color = Color3.new(1, 1, 1)
     
-    d.Tag.Size = 16 -- УМЕНЬШЕННЫЙ РАЗМЕР ТЕКСТА
-    d.Tag.Color = Color3.new(1, 1, 1) -- БЕЛЫЙ ЦВЕТ ТЕКСТА
+    d.Tag.Size = 14 -- ЕЩЕ МЕНЬШЕ ТЕКСТ
+    d.Tag.Color = Color3.new(1, 1, 1)
     d.Tag.Outline = true
     d.Tag.Center = true
     
     d.BarBack.Filled = true
-    d.BarBack.Color = Color3.new(0, 0, 0) -- ЧЕРНЫЙ ФОН HPBAR
-    d.BarBack.Transparency = 0.5
+    d.BarBack.Color = Color3.new(0, 0, 0)
+    d.BarBack.Transparency = 0.6
     
     d.Bar.Filled = true
-    d.Bar.Color = Color3.fromRGB(0, 255, 0) -- ЗЕЛЕНЫЙ ЦВЕТ HPBAR
+    d.Bar.Color = Color3.fromRGB(0, 255, 0) -- ЗЕЛЕНЫЙ ХПБАР
     
     d.Highlight.FillTransparency = 0.4
 end
@@ -161,10 +160,7 @@ end
 local function RemoveESP(p)
     local d = ESP_Data[p]
     if d then
-        d.Box:Remove()
-        d.BarBack:Remove()
-        d.Bar:Remove()
-        d.Tag:Remove()
+        d.Box:Remove() d.BarBack:Remove() d.Bar:Remove() d.Tag:Remove()
         if d.Highlight then d.Highlight:Destroy() end
         ESP_Data[p] = nil
     end
@@ -175,9 +171,12 @@ Players.PlayerAdded:Connect(AddESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 
 RunService.RenderStepped:Connect(function()
+    -- УЛЬТРА INF HEALTH: СТАВИТ 100 ХП КАЖДЫЙ КАДР
     if Flags.GodMode and LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.MaxHealth = 9e9 hum.Health = 9e9 end
+        if hum then 
+            hum.Health = 100 
+        end
     end
 
     FOVCircle.Position = UserInputService:GetMouseLocation()
@@ -220,10 +219,10 @@ RunService.RenderStepped:Connect(function()
                     d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1))
                     d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
 
-                    local tool = char:FindFirstChildOfClass("Tool")
+                    -- УБРАНА НАДПИСЬ ПРЕДМЕТА, ТОЛЬКО ИМЯ
                     d.Tag.Visible = true
-                    d.Tag.Text = p.Name .. "\n[" .. (tool and tool.Name or "Hands") .. "]"
-                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 25)
+                    d.Tag.Text = p.Name
+                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 20)
 
                     if Flags.Aimbot and isEnemy then
                         local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
