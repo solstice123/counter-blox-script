@@ -28,7 +28,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V12_Custom"
+ScreenGui.Name = "Semirax_V13_Final_Visual"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 220, 0, 460)
@@ -142,15 +142,19 @@ local function AddESP(p)
     local d = ESP_Data[p]
     d.Box.Thickness = 1.5
     d.Box.Color = Color3.new(1, 1, 1)
-    d.Tag.Size = 22
-    d.Tag.Color = Color3.fromRGB(0, 255, 0) -- ЦВЕТ ТЕКСТА: ЗЕЛЕНЫЙ
+    
+    d.Tag.Size = 16 -- УМЕНЬШЕННЫЙ РАЗМЕР ТЕКСТА
+    d.Tag.Color = Color3.new(1, 1, 1) -- БЕЛЫЙ ЦВЕТ ТЕКСТА
     d.Tag.Outline = true
     d.Tag.Center = true
+    
     d.BarBack.Filled = true
-    d.BarBack.Color = Color3.new(1, 1, 1)
-    d.BarBack.Transparency = 0.3
+    d.BarBack.Color = Color3.new(0, 0, 0) -- ЧЕРНЫЙ ФОН HPBAR
+    d.BarBack.Transparency = 0.5
+    
     d.Bar.Filled = true
-    d.Bar.Color = Color3.new(1, 1, 1)
+    d.Bar.Color = Color3.fromRGB(0, 255, 0) -- ЗЕЛЕНЫЙ ЦВЕТ HPBAR
+    
     d.Highlight.FillTransparency = 0.4
 end
 
@@ -219,7 +223,7 @@ RunService.RenderStepped:Connect(function()
                     local tool = char:FindFirstChildOfClass("Tool")
                     d.Tag.Visible = true
                     d.Tag.Text = p.Name .. "\n[" .. (tool and tool.Name or "Hands") .. "]"
-                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 35)
+                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 25)
 
                     if Flags.Aimbot and isEnemy then
                         local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
