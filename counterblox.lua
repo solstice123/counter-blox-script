@@ -6,10 +6,12 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Полная очистка всего старого (кругов и меню)
-if _G.ZOA_Circle then _G.ZOA_Circle:Destroy() end
+-- 1. ЖЕСТКАЯ ОЧИСТКА ВСЕХ СЛЕДОВ
+if _G.ZOA_Circle then pcall(function() _G.ZOA_Circle:Destroy() end) _G.ZOA_Circle = nil end
 for _, v in pairs(CoreGui:GetChildren()) do
-    if v.Name:find("Semirax") or v.Name:find("ZOA") then v:Destroy() end
+    if v.Name:find("Semirax") or v.Name:find("ZOA") or v.Name:find("Cheat") then 
+        v:Destroy() 
+    end
 end
 
 local Flags = {
@@ -23,13 +25,13 @@ local ESP_Data = {}
 local CurrentSpeed = 16
 local LastSpeedUpdate = tick()
 
--- Создание единственного круга
+-- Создание единственного чистого круга
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 0.7; FOVCircle.Filled = false
 _G.ZOA_Circle = FOVCircle
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Ultimate_v31"
+ScreenGui.Name = "Semirax_Refined_V4"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 230, 0, 520); Main.Position = UDim2.new(0.5, -115, 0.4, -260); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.Active = true
@@ -38,13 +40,26 @@ Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Color3.new(1, 1, 1); Header.Text = "SEMIRAX CHEAT"; Header.TextColor3 = Color3.new(0, 0, 0); Header.Font = Enum.Font.GothamBold; Header.TextSize = 16; Header.Active = true; Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
--- Драг меню
+-- 2. ЛОГИКА ДВОЙНОГО КЛИКА ДЛЯ ОТКРЫТИЯ/ЗАКРЫТИЯ
+local lastClick = 0
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if tick() - lastClick < 0.35 then -- Детект двойного клика
+            Flags.MenuOpen = not Flags.MenuOpen
+            local targetSize = Flags.MenuOpen and UDim2.new(0, 230, 0, 520) or UDim2.new(0, 230, 0, 40)
+            TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = targetSize}):Play()
+        end
+        lastClick = tick()
+    end
+end)
+
+-- Драг меню (Перетаскивание)
 local dragging, dragStart, startPos
 Header.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = Main.Position end end)
 UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then local delta = input.Position - dragStart; Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
--- Вкладки
+-- ВКЛАДКИ
 local Tabs = Instance.new("Frame", Main); Tabs.Size = UDim2.new(1, 0, 0, 35); Tabs.Position = UDim2.new(0, 0, 0, 45); Tabs.BackgroundTransparency = 1
 local fTabBtn = Instance.new("TextButton", Tabs); fTabBtn.Size = UDim2.new(0.5, 0, 1, 0); fTabBtn.Text = "FUNCTIONS"; fTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30); fTabBtn.TextColor3 = Color3.new(1,1,1); fTabBtn.Font = Enum.Font.GothamBold
 local bTabBtn = Instance.new("TextButton", Tabs); bTabBtn.Size = UDim2.new(0.5, 0, 1, 0); bTabBtn.Position = UDim2.new(0.5, 0, 0, 0); bTabBtn.Text = "BINDS"; bTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); bTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6); bTabBtn.Font = Enum.Font.GothamBold
@@ -91,7 +106,7 @@ end
 CreateSlider("ZOA (RADIUS)", "Radius", 10, 600, 10)
 CreateSlider("FIELD OF VIEW", "CustomFOV", 30, 120, 5)
 
--- Логика Биндов (Прослушка)
+-- Прослушка биндов
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and Binds[input.KeyCode] then
         local d = Binds[input.KeyCode]; Flags[d.Flag] = not Flags[d.Flag]
@@ -106,7 +121,7 @@ local function AddESP(p)
     local d = ESP_Data[p]; d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1); d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true
     d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0,0,0); d.BarBack.Transparency = 0.6; d.Bar.Filled = true; d.Bar.Color = Color3.fromRGB(0, 255, 0)
 end
-function RemoveESP(p) if ESP_Data[p] then for _, v in pairs(ESP_Data[p]) do if v.Remove then v:Remove() elseif v.Destroy then v:Destroy() end end ESP_Data[p] = nil end end
+function RemoveESP(p) if ESP_Data[p] then for _, v in pairs(ESP_Data[p]) do pcall(function() v:Remove() v:Destroy() end) end ESP_Data[p] = nil end end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP); Players.PlayerRemoving:Connect(RemoveESP)
 
@@ -123,8 +138,8 @@ RunService.RenderStepped:Connect(function()
         if Flags.GodMode then Hum.Health = 100 end
         if Flags.InfiniteArmor then
             for _, v in pairs(Char:GetDescendants()) do
-                if v:IsA("NumberValue") or v:IsA("IntValue") then
-                    if v.Name:lower():find("armor") or v.Name:lower():find("shield") then v.Value = 999999 end
+                if (v:IsA("NumberValue") or v:IsA("IntValue")) and (v.Name:lower():find("armor") or v.Name:lower():find("shield")) then
+                    v.Value = 999999
                 end
             end
         end
