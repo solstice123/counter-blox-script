@@ -12,28 +12,29 @@ for _, v in pairs(CoreGui:GetChildren()) do
 end
 
 local Flags = {
-    Aimbot = false, ESP = true, Wallhack = true, FOV_Enabled = true,
-    TeamCheck = true, GodMode = false, BHOP = true, SpeedHack = false,
-    SpeedMult = 50, Radius = 60, MenuOpen = true
+    Aimbot = true, ESP = true, Wallhack = true, TeamCheck = true, 
+    GodMode = false, BHOP = true, Radius = 100, MenuOpen = true
 }
 
-local Binds = {} -- Хранит KeyCode = "НазваниеФлага"
+local Binds = {} 
 local ESP_Data = {}
+local CurrentSpeed = 16
+local LastSpeedUpdate = tick()
 
--- Создание GUI
+-- СОЗДАНИЕ ИНТЕРФЕЙСА
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V19_Ultimate"
+ScreenGui.Name = "Semirax_V21_Full"
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 230, 0, 420)
-Main.Position = UDim2.new(0.5, -115, 0.4, -210)
+Main.Size = UDim2.new(0, 230, 0, 380)
+Main.Position = UDim2.new(0.5, -115, 0.4, -190)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 Main.BorderSizePixel = 0
 Main.ClipsDescendants = true
 Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
--- Заголовок (Перетаскивание и Сворачивание)
+-- ШАПКА (ДЛЯ ПЕРЕТАСКИВАНИЯ)
 local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -44,11 +45,16 @@ Header.TextSize = 16
 Header.Active = true
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
--- Логика перетаскивания
-local dragStart, startPos, dragging
+-- ЛОГИКА ПЕРЕТАСКИВАНИЯ (ИСПРАВЛЕНО)
+local dragging, dragInput, dragStart, startPos
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true; dragStart = input.Position; startPos = Main.Position
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
 UserInputService.InputChanged:Connect(function(input)
@@ -57,156 +63,128 @@ UserInputService.InputChanged:Connect(function(input)
         Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
 
--- Двойной клик для сворачивания
+-- ДВОЙНОЙ КЛИК ДЛЯ СВОРАЧИВАНИЯ
 local lastClick = 0
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if tick() - lastClick < 0.3 then
             Flags.MenuOpen = not Flags.MenuOpen
-            local targetSize = Flags.MenuOpen and UDim2.new(0, 230, 0, 420) or UDim2.new(0, 230, 0, 40)
+            local targetSize = Flags.MenuOpen and UDim2.new(0, 230, 0, 380) or UDim2.new(0, 230, 0, 40)
             TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = targetSize}):Play()
         end
         lastClick = tick()
     end
 end)
 
--- Переключатель вкладок
+-- ПЕРЕКЛЮЧАТЕЛЬ ВКЛАДОК
 local Tabs = Instance.new("Frame", Main)
 Tabs.Size = UDim2.new(1, 0, 0, 35); Tabs.Position = UDim2.new(0, 0, 0, 45); Tabs.BackgroundTransparency = 1
 
-local fTabBtn = Instance.new("TextButton", Tabs)
-fTabBtn.Size = UDim2.new(0.5, 0, 1, 0); fTabBtn.Text = "FUNCTIONS"; fTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30); fTabBtn.TextColor3 = Color3.new(1,1,1); fTabBtn.Font = Enum.Font.GothamBold
+local fTabBtn = Instance.new("TextButton", Tabs); fTabBtn.Size = UDim2.new(0.5, 0, 1, 0); fTabBtn.Text = "FUNCTIONS"; fTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30); fTabBtn.TextColor3 = Color3.new(1,1,1); fTabBtn.Font = Enum.Font.GothamBold
+local bTabBtn = Instance.new("TextButton", Tabs); bTabBtn.Size = UDim2.new(0.5, 0, 1, 0); bTabBtn.Position = UDim2.new(0.5, 0, 0, 0); bTabBtn.Text = "BINDS"; bTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); bTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6); bTabBtn.Font = Enum.Font.GothamBold
 
-local bTabBtn = Instance.new("TextButton", Tabs)
-bTabBtn.Size = UDim2.new(0.5, 0, 1, 0); bTabBtn.Position = UDim2.new(0.5, 0, 0, 0); bTabBtn.Text = "BINDS"; bTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); bTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6); bTabBtn.Font = Enum.Font.GothamBold
+-- СТРАНИЦЫ
+local FuncPage = Instance.new("ScrollingFrame", Main); FuncPage.Size = UDim2.new(1, 0, 1, -90); FuncPage.Position = UDim2.new(0, 0, 0, 85); FuncPage.BackgroundTransparency = 1; FuncPage.ScrollBarThickness = 0
+local BindPage = Instance.new("ScrollingFrame", Main); BindPage.Size = UDim2.new(1, 0, 1, -90); BindPage.Position = UDim2.new(0, 0, 0, 85); BindPage.BackgroundTransparency = 1; BindPage.ScrollBarThickness = 0; BindPage.Visible = false
 
--- Страницы
-local FuncPage = Instance.new("ScrollingFrame", Main)
-FuncPage.Size = UDim2.new(1, 0, 1, -90); FuncPage.Position = UDim2.new(0, 0, 0, 85); FuncPage.BackgroundTransparency = 1; FuncPage.ScrollBarThickness = 0
+Instance.new("UIListLayout", FuncPage).Padding = UDim.new(0, 6); Instance.new("UIListLayout", BindPage).Padding = UDim.new(0, 6)
 
-local BindPage = Instance.new("ScrollingFrame", Main)
-BindPage.Size = UDim2.new(1, 0, 1, -90); BindPage.Position = UDim2.new(0, 0, 0, 85); BindPage.BackgroundTransparency = 1; BindPage.ScrollBarThickness = 0; BindPage.Visible = false
+fTabBtn.MouseButton1Click:Connect(function() FuncPage.Visible = true; BindPage.Visible = false end)
+bTabBtn.MouseButton1Click:Connect(function() FuncPage.Visible = false; BindPage.Visible = true end)
 
-local L1 = Instance.new("UIListLayout", FuncPage); L1.Padding = UDim.new(0, 6); L1.HorizontalAlignment = "Center"
-local L2 = Instance.new("UIListLayout", BindPage); L2.Padding = UDim.new(0, 6); L2.HorizontalAlignment = "Center"
-
-fTabBtn.MouseButton1Click:Connect(function()
-    FuncPage.Visible = true; BindPage.Visible = false
-    fTabBtn.BackgroundColor3 = Color3.fromRGB(30,30,30); fTabBtn.TextColor3 = Color3.new(1,1,1)
-    bTabBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); bTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6)
-end)
-
-bTabBtn.MouseButton1Click:Connect(function()
-    FuncPage.Visible = false; BindPage.Visible = true
-    bTabBtn.BackgroundColor3 = Color3.fromRGB(30,30,30); bTabBtn.TextColor3 = Color3.new(1,1,1)
-    fTabBtn.BackgroundColor3 = Color3.fromRGB(20,20,20); fTabBtn.TextColor3 = Color3.new(0.6,0.6,0.6)
-end)
-
--- Функция создания элементов
+-- СОЗДАНИЕ КНОПОК И БИНДОВ
 local function CreateElement(name, flag)
-    -- Вкладка функций
-    local btn = Instance.new("TextButton", FuncPage)
-    btn.Size = UDim2.new(0.9, 0, 0, 35); btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30)
-    btn.Text = name; btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1); btn.Font = Enum.Font.GothamMedium
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    local btn = Instance.new("TextButton", FuncPage); btn.Size = UDim2.new(0.95, 0, 0, 35); btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); btn.Text = name; btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1); btn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    btn.MouseButton1Click:Connect(function() Flags[flag] = not Flags[flag]; btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1) end)
     
-    btn.MouseButton1Click:Connect(function()
-        Flags[flag] = not Flags[flag]
-        btn.BackgroundColor3 = Flags[flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30)
-        btn.TextColor3 = Flags[flag] and Color3.new(0,0,0) or Color3.new(1,1,1)
-    end)
-
-    -- Вкладка биндов
-    local bBtn = Instance.new("TextButton", BindPage)
-    bBtn.Size = UDim2.new(0.9, 0, 0, 35); bBtn.BackgroundColor3 = Color3.fromRGB(25,25,25); bBtn.TextColor3 = Color3.new(1,1,1)
-    bBtn.Text = name .. ": NONE"; bBtn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", bBtn).CornerRadius = UDim.new(0, 4)
-
-    bBtn.MouseButton1Click:Connect(function()
-        bBtn.Text = "PRESS ANY KEY..."; local conn
-        conn = UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                Binds[input.KeyCode] = {Flag = flag, Button = btn, BindButton = bBtn, Name = name}
-                bBtn.Text = name .. ": " .. input.KeyCode.Name:upper()
-                conn:Disconnect()
-            end
-        end)
-    end)
+    local bBtn = Instance.new("TextButton", BindPage); bBtn.Size = UDim2.new(0.95, 0, 0, 35); bBtn.BackgroundColor3 = Color3.fromRGB(25,25,25); bBtn.TextColor3 = Color3.new(1,1,1); bBtn.Text = name .. ": NONE"; bBtn.Font = Enum.Font.GothamMedium; Instance.new("UICorner", bBtn).CornerRadius = UDim.new(0, 4)
+    bBtn.MouseButton1Click:Connect(function() bBtn.Text = "PRESS KEY..."; local c; c = UserInputService.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then Binds[i.KeyCode] = {Flag = flag, Button = btn, BindBtn = bBtn, Name = name}; bBtn.Text = name .. ": " .. i.KeyCode.Name; c:Disconnect() end end) end)
 end
 
-local list = {"Aimbot", "ESP", "Wallhack", "GodMode", "BHOP", "SpeedHack"}
-for _, v in pairs(list) do CreateElement(v, v) end
+local feats = {"Aimbot", "ESP", "Wallhack", "GodMode", "BHOP"}
+for _, v in pairs(feats) do CreateElement(v, v) end
 
--- Обработка биндов клавиатуры
+-- ОБРАБОТКА НАЖАТИЙ КЛАВИШ
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and Binds[input.KeyCode] then
-        local data = Binds[input.KeyCode]
-        Flags[data.Flag] = not Flags[data.Flag]
-        data.Button.BackgroundColor3 = Flags[data.Flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30)
-        data.Button.TextColor3 = Flags[data.Flag] and Color3.new(0,0,0) or Color3.new(1,1,1)
+        local d = Binds[input.KeyCode]
+        Flags[d.Flag] = not Flags[d.Flag]
+        d.Button.BackgroundColor3 = Flags[d.Flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30)
+        d.Button.TextColor3 = Flags[d.Flag] and Color3.new(0,0,0) or Color3.new(1,1,1)
     end
 end)
 
--- ESP Система
+-- ESP СИСТЕМА
 local function AddESP(p)
     if ESP_Data[p] then return end
-    ESP_Data[p] = {
-        Box = Drawing.new("Square"), BarBack = Drawing.new("Square"),
-        Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight")
-    }
+    ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
     local d = ESP_Data[p]
     d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1)
     d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true
     d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0,0,0); d.BarBack.Transparency = 0.6
-    d.Bar.Filled = true; d.Bar.Color = Color3.fromRGB(0,255,0)
+    d.Bar.Filled = true; d.Bar.Color = Color3.fromRGB(0, 255, 0)
 end
 
-local function RemoveESP(p)
-    local d = ESP_Data[p]
-    if d then 
-        for _, v in pairs(d) do if v.Remove then v:Remove() elseif v.Destroy then v:Destroy() end end
-        ESP_Data[p] = nil 
-    end
-end
-
+function RemoveESP(p) if ESP_Data[p] then for _, v in pairs(ESP_Data[p]) do if v.Remove then v:Remove() elseif v.Destroy then v:Destroy() end end ESP_Data[p] = nil end end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP); Players.PlayerRemoving:Connect(RemoveESP)
 
--- Главный цикл
+-- ГЛАВНЫЙ ЦИКЛ
 RunService.RenderStepped:Connect(function()
-    -- Бессмертие (100 HP Каждую мс)
-    if Flags.GodMode and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.Health = 100
-    end
-    
-    -- Скорость и Бхоп
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        local hum = LocalPlayer.Character.Humanoid
-        hum.WalkSpeed = Flags.SpeedHack and Flags.SpeedMult or 16
-        if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then hum.Jump = true end
+    local Char = LocalPlayer.Character
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+
+    if Hum and Root then
+        -- GodMode (100 HP Каждую мс)
+        if Flags.GodMode then Hum.Health = 100 end
+        
+        -- BHOP РАЗГОН (+3 к скорости в секунду)
+        if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            Hum.Jump = true
+            if tick() - LastSpeedUpdate >= 1 then
+                CurrentSpeed = math.clamp(CurrentSpeed + 3, 16, 120) -- Макс скорость 120
+                LastSpeedUpdate = tick()
+            end
+            Hum.WalkSpeed = CurrentSpeed
+        else
+            CurrentSpeed = 16
+            Hum.WalkSpeed = 16
+        end
     end
 
-    -- Отрисовка ESP
+    local Target = nil
+    local MinDist = Flags.Radius
+    local MousePos = UserInputService:GetMouseLocation()
+
     for p, d in pairs(ESP_Data) do
-        local char = p.Character; local hum = char and char:FindFirstChildOfClass("Humanoid"); local root = char and char:FindFirstChild("HumanoidRootPart")
-        if char and hum and root and hum.Health > 0 then
-            local isEnemy = (p.Team ~= LocalPlayer.Team); local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
-            d.Highlight.Parent = char; d.Highlight.Enabled = Flags.Wallhack; d.Highlight.FillColor = isEnemy and Color3.new(1,0,0) or Color3.new(0,0.5,1)
+        local c = p.Character; local h = c and c:FindFirstChildOfClass("Humanoid"); local r = c and c:FindFirstChild("HumanoidRootPart")
+        if c and h and r and h.Health > 0 then
+            local isEnemy = (p.Team ~= LocalPlayer.Team); local pos, onScreen = Camera:WorldToViewportPoint(r.Position)
+            d.Highlight.Parent = c; d.Highlight.Enabled = Flags.Wallhack; d.Highlight.FillColor = isEnemy and Color3.new(1,0,0) or Color3.new(0,0.5,1)
             
             if onScreen and Flags.ESP and (not Flags.TeamCheck or isEnemy) then
-                local head = char:FindFirstChild("Head")
+                local head = c:FindFirstChild("Head")
                 if head then
                     local tPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
-                    local bPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                    local h = math.abs(tPos.Y - bPos.Y); local w = h / 2
+                    local bPos = Camera:WorldToViewportPoint(r.Position - Vector3.new(0, 3, 0))
+                    local height = math.abs(tPos.Y - bPos.Y)
                     
-                    d.Box.Visible = true; d.Box.Size = Vector2.new(w, h); d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
-                    d.BarBack.Visible = true; d.BarBack.Size = Vector2.new(4, h); d.BarBack.Position = Vector2.new(pos.X - w/2 - 6, pos.Y - h/2)
-                    d.Bar.Visible = true; d.Bar.Size = Vector2.new(2, h * (hum.Health/hum.MaxHealth)); d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
-                    d.Tag.Visible = true; d.Tag.Text = p.Name; d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 20)
+                    d.Box.Visible = true; d.Box.Size = Vector2.new(height/2, height); d.Box.Position = Vector2.new(pos.X - height/4, pos.Y - height/2)
+                    d.BarBack.Visible = true; d.BarBack.Size = Vector2.new(4, height); d.BarBack.Position = Vector2.new(pos.X - height/4 - 6, pos.Y - height/2)
+                    d.Bar.Visible = true; d.Bar.Size = Vector2.new(2, height * (h.Health/h.MaxHealth)); d.Bar.Position = Vector2.new(pos.X - height/4 - 5, (pos.Y + height/2) - d.Bar.Size.Y)
+                    d.Tag.Visible = true; d.Tag.Text = p.Name; d.Tag.Position = Vector2.new(pos.X, pos.Y - height/2 - 20)
+                    
+                    -- Логика Аимбота
+                    if Flags.Aimbot and isEnemy then
+                        local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+                        if dist < MinDist then MinDist = dist Target = head end
+                    end
                 end
             else d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false end
         else d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false d.Highlight.Enabled = false end
     end
+    -- Наводка Аимбота
+    if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
 end)
