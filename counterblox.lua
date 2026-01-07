@@ -28,7 +28,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V11_Final"
+ScreenGui.Name = "Semirax_V11_White"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 220, 0, 460)
@@ -140,12 +140,17 @@ local function AddESP(p)
         Highlight = Instance.new("Highlight")
     }
     local d = ESP_Data[p]
-    d.Box.Thickness = 1
+    d.Box.Thickness = 1.5
+    d.Box.Color = Color3.new(1, 1, 1)
     d.Tag.Size = 22
+    d.Tag.Color = Color3.new(1, 1, 1)
     d.Tag.Outline = true
     d.Tag.Center = true
     d.BarBack.Filled = true
+    d.BarBack.Color = Color3.new(1, 1, 1)
+    d.BarBack.Transparency = 0.2
     d.Bar.Filled = true
+    d.Bar.Color = Color3.new(1, 1, 1)
     d.Highlight.FillTransparency = 0.4
 end
 
@@ -168,10 +173,7 @@ Players.PlayerRemoving:Connect(RemoveESP)
 RunService.RenderStepped:Connect(function()
     if Flags.GodMode and LocalPlayer.Character then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.MaxHealth = 9e9
-            hum.Health = 9e9
-        end
+        if hum then hum.MaxHealth = 9e9 hum.Health = 9e9 end
     end
 
     FOVCircle.Position = UserInputService:GetMouseLocation()
@@ -192,6 +194,7 @@ RunService.RenderStepped:Connect(function()
             d.Highlight.Parent = char
             d.Highlight.Enabled = Flags.Wallhack
             d.Highlight.FillColor = isEnemy and Color3.new(1, 0, 0) or Color3.new(0, 0.5, 1)
+            d.Highlight.OutlineColor = Color3.new(1, 1, 1)
 
             if onScreen and Flags.ESP and (not Flags.TeamCheck or isEnemy) then
                 local head = char:FindFirstChild("Head")
@@ -212,7 +215,6 @@ RunService.RenderStepped:Connect(function()
                     d.Bar.Visible = true
                     d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1))
                     d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
-                    d.Bar.Color = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
 
                     local tool = char:FindFirstChildOfClass("Tool")
                     d.Tag.Visible = true
