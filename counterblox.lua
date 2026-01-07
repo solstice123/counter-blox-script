@@ -16,8 +16,7 @@ local Flags = {
     FOV_Enabled = true,
     TeamCheck = true,
     GodMode = false,
-    Radius = 40, 
-    MenuOpen = true
+    Radius = 40
 }
 
 local ESP_Data = {}
@@ -29,7 +28,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V10_Fix"
+ScreenGui.Name = "Semirax_V11_Final"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 220, 0, 460)
@@ -72,9 +71,8 @@ local Container = Instance.new("Frame", Main)
 Container.Size = UDim2.new(1, 0, 1, -60)
 Container.Position = UDim2.new(0, 0, 0, 60)
 Container.BackgroundTransparency = 1
-local Layout = Instance.new("UIListLayout", Container)
-Layout.Padding = UDim.new(0, 8)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Instance.new("UIListLayout", Container).Padding = UDim.new(0, 8)
+Container.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local function CreateToggle(name, flag)
     local btn = Instance.new("TextButton", Container)
@@ -133,6 +131,7 @@ CreateAdj("-", 0, -10)
 CreateAdj("+", 0.52, 10)
 
 local function AddESP(p)
+    if ESP_Data[p] then return end
     ESP_Data[p] = {
         Box = Drawing.new("Square"),
         BarBack = Drawing.new("Square"),
@@ -141,97 +140,96 @@ local function AddESP(p)
         Highlight = Instance.new("Highlight")
     }
     local d = ESP_Data[p]
-    d.Box.Visible = false
-    d.Tag.Visible = false
-    d.Highlight.Enabled = false
-    
-    d.Box.Color = Color3.new(1, 1, 1)
-    d.Tag.Color = Color3.new(1, 1, 1)
+    d.Box.Thickness = 1
+    d.Tag.Size = 22
     d.Tag.Outline = true
     d.Tag.Center = true
-    d.Tag.Size = 22
-    d.Tag.Font = 2
     d.BarBack.Filled = true
-    d.BarBack.Color = Color3.new(0, 0, 0)
     d.Bar.Filled = true
     d.Highlight.FillTransparency = 0.4
-    d.Highlight.OutlineTransparency = 0
+end
+
+local function RemoveESP(p)
+    local d = ESP_Data[p]
+    if d then
+        d.Box:Remove()
+        d.BarBack:Remove()
+        d.Bar:Remove()
+        d.Tag:Remove()
+        if d.Highlight then d.Highlight:Destroy() end
+        ESP_Data[p] = nil
+    end
 end
 
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP)
+Players.PlayerRemoving:Connect(RemoveESP)
 
-RunService:BindToRenderStep("Semirax_Update", Enum.RenderPriority.Last.Value, function()
-    if Flags.GodMode and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.Health = 100
+RunService.RenderStepped:Connect(function()
+    if Flags.GodMode and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.MaxHealth = 9e9
+            hum.Health = 9e9
+        end
     end
 
     FOVCircle.Position = UserInputService:GetMouseLocation()
     FOVCircle.Radius = Flags.Radius
     local MousePos = UserInputService:GetMouseLocation()
-    local CurrentTarget = nil
+    local Target = nil
     local MinDist = Flags.Radius
 
-    for _, p in pairs(Players:GetPlayers()) do
-        local d = ESP_Data[p]
+    for p, d in pairs(ESP_Data) do
         local char = p.Character
-        if p ~= LocalPlayer and d and char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+
+        if char and hum and root and hum.Health > 0 then
             local isEnemy = (p.Team ~= LocalPlayer.Team)
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if not root then continue end
-            
-            local rootPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
 
             d.Highlight.Parent = char
             d.Highlight.Enabled = Flags.Wallhack
-            if isEnemy then
-                d.Highlight.FillColor = Color3.fromRGB(255, 50, 50)
-                d.Highlight.OutlineColor = Color3.new(1, 0, 0)
-            else
-                d.Highlight.FillColor = Color3.fromRGB(50, 150, 255)
-                d.Highlight.OutlineColor = Color3.new(0, 0.5, 1)
-            end
+            d.Highlight.FillColor = isEnemy and Color3.new(1, 0, 0) or Color3.new(0, 0.5, 1)
 
             if onScreen and Flags.ESP and (not Flags.TeamCheck or isEnemy) then
                 local head = char:FindFirstChild("Head")
                 if head then
-                    local top = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
-                    local bottom = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
-                    local h = math.abs(top.Y - bottom.Y)
+                    local tPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.7, 0))
+                    local bPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                    local h = math.abs(tPos.Y - bPos.Y)
                     local w = h / 2
 
-                    d.Box.Size = Vector2.new(w, h)
-                    d.Box.Position = Vector2.new(rootPos.X - w/2, rootPos.Y - h/2)
                     d.Box.Visible = true
+                    d.Box.Size = Vector2.new(w, h)
+                    d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
 
-                    local hp = math.clamp(char.Humanoid.Health / char.Humanoid.MaxHealth, 0, 1)
-                    d.BarBack.Size = Vector2.new(4, h)
-                    d.BarBack.Position = Vector2.new(rootPos.X - w/2 - 6, rootPos.Y - h/2)
                     d.BarBack.Visible = true
-                    d.Bar.Size = Vector2.new(2, h * hp)
-                    d.Bar.Position = Vector2.new(rootPos.X - w/2 - 5, (rootPos.Y + h/2) - (h * hp))
-                    d.Bar.Color = Color3.fromHSV(hp * 0.3, 1, 1)
+                    d.BarBack.Size = Vector2.new(4, h)
+                    d.BarBack.Position = Vector2.new(pos.X - w/2 - 6, pos.Y - h/2)
+
                     d.Bar.Visible = true
+                    d.Bar.Size = Vector2.new(2, h * math.clamp(hum.Health/hum.MaxHealth, 0, 1))
+                    d.Bar.Position = Vector2.new(pos.X - w/2 - 5, (pos.Y + h/2) - d.Bar.Size.Y)
+                    d.Bar.Color = Color3.fromHSV(math.clamp(hum.Health/hum.MaxHealth, 0, 1) * 0.3, 1, 1)
 
                     local tool = char:FindFirstChildOfClass("Tool")
-                    d.Tag.Text = p.Name .. "\n[" .. (tool and tool.Name or "Hands") .. "]"
-                    d.Tag.Position = Vector2.new(rootPos.X, rootPos.Y - h/2 - 35)
                     d.Tag.Visible = true
-                    
+                    d.Tag.Text = p.Name .. "\n[" .. (tool and tool.Name or "Hands") .. "]"
+                    d.Tag.Position = Vector2.new(pos.X, pos.Y - h/2 - 35)
+
                     if Flags.Aimbot and isEnemy then
-                        local dist = (Vector2.new(rootPos.X, rootPos.Y) - MousePos).Magnitude
-                        if dist < MinDist then
-                            MinDist = dist
-                            CurrentTarget = head
-                        end
+                        local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+                        if dist < MinDist then MinDist = dist Target = head end
                     end
                 end
             else
                 d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false
             end
-        elseif d then
+        else
             d.Box.Visible = false d.Bar.Visible = false d.BarBack.Visible = false d.Tag.Visible = false d.Highlight.Enabled = false
         end
     end
-    if CurrentTarget then Camera.CFrame = CFrame.new(Camera.CFrame.Position, CurrentTarget.Position) end
+    if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
 end)
