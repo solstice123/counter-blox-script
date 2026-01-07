@@ -28,7 +28,7 @@ FOVCircle.Transparency = 0.8
 FOVCircle.Visible = Flags.FOV_Enabled
 
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_V11_White"
+ScreenGui.Name = "Semirax_V12_Custom"
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.Size = UDim2.new(0, 220, 0, 460)
@@ -143,12 +143,12 @@ local function AddESP(p)
     d.Box.Thickness = 1.5
     d.Box.Color = Color3.new(1, 1, 1)
     d.Tag.Size = 22
-    d.Tag.Color = Color3.new(1, 1, 1)
+    d.Tag.Color = Color3.fromRGB(0, 255, 0) -- ЦВЕТ ТЕКСТА: ЗЕЛЕНЫЙ
     d.Tag.Outline = true
     d.Tag.Center = true
     d.BarBack.Filled = true
     d.BarBack.Color = Color3.new(1, 1, 1)
-    d.BarBack.Transparency = 0.2
+    d.BarBack.Transparency = 0.3
     d.Bar.Filled = true
     d.Bar.Color = Color3.new(1, 1, 1)
     d.Highlight.FillTransparency = 0.4
