@@ -6,47 +6,73 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- ЖЕСТКАЯ ОЧИСТКА ПЕРЕД ЗАПУСКОМ
+-- 1. ГЛОБАЛЬНАЯ ОЧИСТКА ВСЕГО (МЕНЮ + DRAWING + HIGHLIGHTS)
 if _G.ZOA_Circle then pcall(function() _G.ZOA_Circle:Destroy() end) _G.ZOA_Circle = nil end
+
+-- Удаляем старые GUI
 for _, v in pairs(CoreGui:GetChildren()) do
-    if v.Name:find("Semirax") or v.Name:find("ZOA") or v.Name:find("Cheat") then 
-        v:Destroy() 
+    if v.Name:find("Semirax") or v.Name:find("ZOA") or v.Name:find("Cheat") then v:Destroy() end
+end
+
+-- ОЧИСТКА ПРЯМОУГОЛЬНИКОВ, НИКОВ И ХП-БАРОВ (Drawing Objects)
+-- Мы проходим по всем объектам Drawing и удаляем их, чтобы не было "призраков"
+local function ClearAllDrawings()
+    local success, err = pcall(function()
+        -- Если у тебя есть доступ к метатаблице Drawing или ты хранишь их в таблице
+        -- В данном случае мы просто полагаемся на то, что новая сессия перезапишет старую,
+        -- но для верности мы очищаем ESP_Data, если скрипт был запущен ранее.
+        if _G.Old_ESP_Data then
+            for _, player_esp in pairs(_G.Old_ESP_Data) do
+                for _, drawing_obj in pairs(player_esp) do
+                    if drawing_obj.Remove then drawing_obj:Remove() end
+                end
+            end
+        end
+    end)
+end
+ClearAllDrawings()
+
+-- Очистка Wallhack (Highlight)
+for _, p in pairs(Players:GetPlayers()) do
+    if p.Character then
+        for _, obj in pairs(p.Character:GetChildren()) do
+            if obj:IsA("Highlight") then obj:Destroy() end
+        end
     end
 end
 
 local Flags = {
     Aimbot = true, WH = true, TeamCheck = true, 
-    GodMode = false, InfiniteArmor = false, BHOP = true, Radius = 80, 
-    ZOA_Visible = true, MenuOpen = true, CustomFOV = 70, NetOptimize = true
+    BHOP = true, Radius = 80, ZOA_Visible = true, 
+    MenuOpen = true, CustomFOV = 70, NetOptimize = true
 }
 
 local Binds = {} 
 local ESP_Data = {}
+_G.Old_ESP_Data = ESP_Data -- Сохраняем ссылку для следующей очистки
 local CurrentSpeed = 16
 local LastSpeedUpdate = tick()
 
--- СОЗДАНИЕ КРУГА
+-- СОЗДАНИЕ КРУГА ZOA
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5; FOVCircle.Color = Color3.new(1, 1, 1); FOVCircle.Transparency = 0.7; FOVCircle.Filled = false
 _G.ZOA_Circle = FOVCircle
 
-local ScreenGui = Instance.new("ScreenGui", CoreGui)
-ScreenGui.Name = "Semirax_Final_Build"
-
+local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_Final_V5"
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 230, 0, 520); Main.Position = UDim2.new(0.5, -115, 0.4, -260); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.Active = true
+Main.Size = UDim2.new(0, 230, 0, 420); Main.Position = UDim2.new(0.5, -115, 0.4, -210); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.BorderSizePixel = 0; Main.ClipsDescendants = true; Main.Active = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
 local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 40); Header.BackgroundColor3 = Color3.new(1, 1, 1); Header.Text = "SEMIRAX CHEAT"; Header.TextColor3 = Color3.new(0, 0, 0); Header.Font = Enum.Font.GothamBold; Header.TextSize = 16; Header.Active = true; Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
 
--- ЛОГИКА ДВОЙНОГО КЛИКА
+-- СВОРАЧИВАНИЕ (Двойной клик)
 local lastClick = 0
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if tick() - lastClick < 0.35 then
             Flags.MenuOpen = not Flags.MenuOpen
-            local targetSize = Flags.MenuOpen and UDim2.new(0, 230, 0, 520) or UDim2.new(0, 230, 0, 40)
+            local targetSize = Flags.MenuOpen and UDim2.new(0, 230, 0, 420) or UDim2.new(0, 230, 0, 40)
             TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = targetSize}):Play()
         end
         lastClick = tick()
@@ -68,8 +94,7 @@ local FuncPage = Instance.new("ScrollingFrame", Main); FuncPage.Size = UDim2.new
 local BindPage = Instance.new("ScrollingFrame", Main); BindPage.Size = UDim2.new(1, 0, 1, -90); BindPage.Position = UDim2.new(0, 0, 0, 85); BindPage.BackgroundTransparency = 1; BindPage.ScrollBarThickness = 0; BindPage.Visible = false
 
 for _, page in pairs({FuncPage, BindPage}) do
-    Instance.new("UIListLayout", page).Padding = UDim.new(0, 8)
-    local P = Instance.new("UIPadding", page); P.PaddingTop = UDim.new(0, 10); P.PaddingLeft = UDim.new(0, 10); P.PaddingRight = UDim.new(0, 10)
+    Instance.new("UIListLayout", page).Padding = UDim.new(0, 8); Instance.new("UIPadding", page).PaddingTop = UDim.new(0, 10); Instance.new("UIPadding", page).PaddingLeft = UDim.new(0, 10); Instance.new("UIPadding", page).PaddingRight = UDim.new(0, 10)
 end
 
 fTabBtn.MouseButton1Click:Connect(function() FuncPage.Visible = true; BindPage.Visible = false end)
@@ -83,7 +108,7 @@ local function CreateElement(name, flag)
     bBtn.MouseButton1Click:Connect(function() bBtn.Text = "..."; local conn; conn = UserInputService.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then Binds[i.KeyCode] = {Flag = flag, Button = btn}; bBtn.Text = name .. ": " .. i.KeyCode.Name; conn:Disconnect() end end) end)
 end
 
-local feats = {"Aimbot", "WH", "GodMode", "InfiniteArmor", "BHOP", "ZOA_Visible", "NetOptimize"}
+local feats = {"Aimbot", "WH", "BHOP", "ZOA_Visible", "NetOptimize"}
 for _, v in pairs(feats) do CreateElement(v, v) end
 
 local function Slider(label, flag, min, max, step)
@@ -98,20 +123,21 @@ end
 Slider("ZOA (RADIUS)", "Radius", 10, 600, 10)
 Slider("FIELD OF VIEW", "CustomFOV", 30, 120, 5)
 
--- BINDS LISTENER
+-- БИНДЫ
 UserInputService.InputBegan:Connect(function(i, g) if not g and Binds[i.KeyCode] then local d = Binds[i.KeyCode]; Flags[d.Flag] = not Flags[d.Flag]; d.Button.BackgroundColor3 = Flags[d.Flag] and Color3.new(1,1,1) or Color3.fromRGB(30,30,30); d.Button.TextColor3 = Flags[d.Flag] and Color3.new(0,0,0) or Color3.new(1,1,1) end end)
 
 local function AddESP(p)
     if ESP_Data[p] then return end
     ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
     local d = ESP_Data[p]; d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1); d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true
-    d.BarBack.Filled = true; d.BarBack.Color = Color3.new(0,0,0); d.BarBack.Transparency = 0.6; d.Bar.Filled = true; d.Bar.Color = Color3.fromRGB(0, 255, 0)
+    d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(0,0,0), 0.6
+    d.Bar.Filled, d.Bar.Color = true, Color3.fromRGB(0, 255, 0)
 end
 function RemoveESP(p) if ESP_Data[p] then for _, v in pairs(ESP_Data[p]) do pcall(function() v:Remove() v:Destroy() end) end ESP_Data[p] = nil end end
 for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
 Players.PlayerAdded:Connect(AddESP); Players.PlayerRemoving:Connect(RemoveESP)
 
--- MAIN LOOP
+-- ГЛАВНЫЙ ЦИКЛ
 RunService.RenderStepped:Connect(function()
     if Flags.NetOptimize then settings().Network.IncomingReplicationLag = 0; game:GetService("NetworkClient"):SetOutgoingKBPSLimit(9e9) end
     Camera.FieldOfView = Flags.CustomFOV
@@ -119,8 +145,6 @@ RunService.RenderStepped:Connect(function()
 
     local Char = LocalPlayer.Character; local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     if Char and Hum then
-        if Flags.GodMode then Hum.Health = 100 end
-        if Flags.InfiniteArmor then for _, v in pairs(Char:GetDescendants()) do if (v:IsA("NumberValue") or v:IsA("IntValue")) and (v.Name:lower():find("armor") or v.Name:lower():find("shield")) then v.Value = 999999 end end end
         if Flags.BHOP and UserInputService:IsKeyDown(Enum.KeyCode.Space) then Hum.Jump = true; if tick() - LastSpeedUpdate >= 1 then CurrentSpeed = math.clamp(CurrentSpeed + 3, 16, 120); LastSpeedUpdate = tick() end; Hum.WalkSpeed = CurrentSpeed else CurrentSpeed = 16; Hum.WalkSpeed = 16 end
     end
 
