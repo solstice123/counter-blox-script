@@ -28,6 +28,15 @@ _G.Old_ESP = ESP_Data
 local CurrentSpeed = 16
 local LastSpeedUpdate = tick()
 
+-- ФУНКЦИЯ ПРОВЕРКИ СТЕН
+local function IsVisible(part, character)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, character, Camera}
+    local result = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000, params)
+    return result == nil
+end
+
 -- 2. ИНТЕРФЕЙС
 local ScreenGui = Instance.new("ScreenGui", CoreGui); ScreenGui.Name = "Semirax_Final_Code"
 local Main = Instance.new("Frame", ScreenGui)
@@ -111,7 +120,7 @@ local function AddESP(p)
     ESP_Data[p] = { Box = Drawing.new("Square"), BarBack = Drawing.new("Square"), Bar = Drawing.new("Square"), Tag = Drawing.new("Text"), Highlight = Instance.new("Highlight") }
     local d = ESP_Data[p]
     d.Box.Thickness = 1.5; d.Box.Color = Color3.new(1,1,1)
-    d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true -- БЕЛЫЙ НИК
+    d.Tag.Size = 14; d.Tag.Color = Color3.new(1,1,1); d.Tag.Outline = true; d.Tag.Center = true
     d.BarBack.Filled, d.BarBack.Color, d.BarBack.Transparency = true, Color3.new(0,0,0), 0.5
     d.Bar.Filled = true
 end
@@ -133,7 +142,7 @@ RunService.RenderStepped:Connect(function()
 
     local Target, MinDist, MousePos = nil, Flags.Radius, UserInputService:GetMouseLocation()
     for p, d in pairs(ESP_Data) do
-        local c = p.Character; local h = c and c:FindFirstChildOfClass("Humanoid"); local r = c and c:FindFirstChild("HumanoidRootPart")
+        local c = p.Character; local h = c and c:FindFirstChildOfClass("Humanoid Forum"); local r = c and c:FindFirstChild("HumanoidRootPart")
         if c and h and r and h.Health > 0 then
             local isEnemy = (p.Team ~= LocalPlayer.Team); local pos, onScreen = Camera:WorldToViewportPoint(r.Position)
             d.Highlight.Parent = c; d.Highlight.Enabled = Flags.WH; d.Highlight.FillColor = isEnemy and Color3.new(1, 0, 0) or Color3.new(0, 0.5, 1)
@@ -144,12 +153,27 @@ RunService.RenderStepped:Connect(function()
                     d.Box.Visible, d.Box.Size, d.Box.Position = true, Vector2.new(height/2, height), Vector2.new(pos.X - height/4, pos.Y - height/2)
                     d.BarBack.Visible, d.BarBack.Size, d.BarBack.Position = true, Vector2.new(4, height), Vector2.new(pos.X - height/4 - 6, pos.Y - height/2)
                     d.Bar.Visible, d.Bar.Size, d.Bar.Position = true, Vector2.new(2, height * (h.Health/h.MaxHealth)), Vector2.new(pos.X - height/4 - 5, (pos.Y + height/2) - (height * (h.Health/h.MaxHealth)))
-                    d.Bar.Color = Color3.fromHSV(h.Health/h.MaxHealth * 0.3, 1, 1) -- ЗЕЛЕНЫЙ -> КРАСНЫЙ
+                    d.Bar.Color = Color3.fromHSV(h.Health/h.MaxHealth * 0.3, 1, 1)
                     d.Tag.Visible, d.Tag.Text, d.Tag.Position = true, p.Name, Vector2.new(pos.X, pos.Y - height/2 - 20)
-                    if Flags.Aimbot and isEnemy then local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude; if dist < MinDist then MinDist = dist; Target = head end end
+                    
+                    -- AIMBOT С ФИКСОМ ДИСТАНЦИИ И СТЕН
+                    if Flags.Aimbot and isEnemy and IsVisible(head, c) then 
+                        local dist = (Vector2.new(pos.X, pos.Y) - MousePos).Magnitude
+                        if dist < MinDist then MinDist = dist; Target = head end 
+                    end
                 end
             else d.Box.Visible, d.Tag.Visible, d.Bar.Visible, d.BarBack.Visible = false, false, false, false end
         else d.Box.Visible, d.Tag.Visible, d.Bar.Visible, d.BarBack.Visible, d.Highlight.Enabled = false, false, false, false, false end
     end
-    if Target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Position) end
+    
+    -- ПЛАВНОЕ НАВЕДЕНИЕ
+    if Target then
+        local targetPos = Target.Position
+        local lookAt = CFrame.new(Camera.CFrame.Position, targetPos)
+        local distance = (Camera.CFrame.Position - targetPos).Magnitude
+        
+        -- Если враг ближе 15 единиц, делаем наводку мягче (0.15), чтобы не дергало
+        local smoothAmount = (distance < 15) and 0.15 or 0.3
+        Camera.CFrame = Camera.CFrame:Lerp(lookAt, smoothAmount)
+    end
 end)
