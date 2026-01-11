@@ -1,5 +1,5 @@
--- COUNTER BLOX: XENO OPTIMIZED VERSION
--- Fixed by Colin (Xeno Executor Compatibility)
+-- COUNTER BLOX: XENO ULTRA-STABLE
+-- Fixed by Colin (Nil Value & Line 22 Fix)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -8,118 +8,128 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
 
--- 1. SETTINGS
+-- 1. СТАБИЛЬНЫЙ КОНФИГ
 local Config = {
     Aimbot = true,
-    SilentAim = true,
     FOV = 150,
     ESP = true,
     TeamCheck = true,
     WalkSpeed = 25
 }
 
--- 2. SILENT AIM (XENO COMPATIBLE HOOK)
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    if not checkcaller() and Config.SilentAim and method == "FindPartOnRayWithIgnoreList" then
-        local Target = nil
-        local Dist = Config.FOV
-        for _, v in pairs(Players:GetPlayers()) do
-            if v ~= LocalPlayer and v.Team ~= LocalPlayer.Team and v.Character and v.Character:FindFirstChild("Head") then
-                local Pos, OnScreen = Camera:WorldToViewportPoint(v.Character.Head.Position)
-                if OnScreen then
-                    local Mag = (Vector2.new(Pos.X, Pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                    if Mag < Dist then
-                        Target = v
-                        Dist = Mag
-                    end
-                end
-            end
-        end
-
-        if Target then
-            args[1] = Ray.new(Camera.CFrame.Position, (Target.Character.Head.Position - Camera.CFrame.Position).Unit * 1000)
-            return oldNamecall(self, unpack(args))
-        end
-    end
-    return oldNamecall(self, ...)
-end)
-setreadonly(mt, true)
-
--- 3. INTERFACE (INSTANCE-BASED)
+-- 2. ГРАФИЧЕСКОЕ МЕНЮ (БЕЗ ВНЕШНИХ БИБЛИОТЕК)
 local ScreenGui = Instance.new("ScreenGui")
 local Main = Instance.new("Frame")
-local AimToggle = Instance.new("TextButton")
-local EspToggle = Instance.new("TextButton")
+local Title = Instance.new("TextLabel")
+local AimBtn = Instance.new("TextButton")
+local EspBtn = Instance.new("TextButton")
 
-ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "XenoFix"
+ScreenGui.Parent = (game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui"))
+
 Main.Parent = ScreenGui
-Main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Main.Size = UDim2.new(0, 200, 0, 120)
-Main.Position = UDim2.new(0.5, -100, 0.2, 0)
-Main.Draggable = true
+Main.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Main.Size = UDim2.new(0, 160, 0, 130)
+Main.Position = UDim2.new(0.5, -80, 0.4, 0)
 Main.Active = true
+Main.Draggable = true
 
-local function SetupBtn(btn, txt, y, cb)
+Title.Parent = Main
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "XENO FIX (INS)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+
+local function MakeBtn(btn, txt, y, callback)
     btn.Parent = Main
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
     btn.Position = UDim2.new(0.05, 0, 0, y)
     btn.Text = txt
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.MouseButton1Click:Connect(cb)
+    btn.MouseButton1Click:Connect(callback)
 end
 
-SetupBtn(AimToggle, "Silent Aim: ON", 10, function()
-    Config.SilentAim = not Config.SilentAim
-    AimToggle.Text = "Silent Aim: " .. (Config.SilentAim and "ON" or "OFF")
+MakeBtn(AimBtn, "Aimbot: ON", 40, function()
+    Config.Aimbot = not Config.Aimbot
+    AimBtn.Text = "Aimbot: " .. (Config.Aimbot and "ON" or "OFF")
 end)
 
-SetupBtn(EspToggle, "ESP: ON", 60, function()
+MakeBtn(EspBtn, "ESP: ON", 85, function()
     Config.ESP = not Config.ESP
-    EspToggle.Text = "ESP: " .. (Config.ESP and "ON" or "OFF")
+    EspBtn.Text = "ESP: " .. (Config.ESP and "ON" or "OFF")
 end)
 
 UserInputService.InputBegan:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.Insert then Main.Visible = not Main.Visible end
 end)
 
--- 4. XENO STABLE ESP (Adornment Method)
-local function CreateESP(P)
-    local Box = Instance.new("BoxHandleAdornment")
-    Box.AlwaysOnTop = true
-    Box.ZIndex = 10
-    Box.Adornee = nil
-    Box.Color3 = Color3.fromRGB(255, 0, 0)
-    Box.Transparency = 0.5
-    Box.Size = Vector3.new(4, 5, 1)
-    Box.Parent = game:GetService("CoreGui")
+-- 3. ПОИСК ЦЕЛИ (БЕЗ NIL ERRORS)
+local function GetClosest()
+    local target = nil
+    local dist = Config.FOV
+    local players = Players:GetPlayers()
+    
+    for i = 1, #players do
+        local v = players[i]
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("Head") then
+            if Config.TeamCheck and v.Team == LocalPlayer.Team then continue end
+            if v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health <= 0 then continue end
+            
+            local pos, onScreen = Camera:WorldToViewportPoint(v.Character.Head.Position)
+            if onScreen then
+                local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                if mag < dist then
+                    target = v
+                    dist = mag
+                end
+            end
+        end
+    end
+    return target
+end
 
-    RunService.RenderStepped:Connect(function()
-        if P.Character and P.Character:FindFirstChild("HumanoidRootPart") and Config.ESP then
-            if Config.TeamCheck and P.Team == LocalPlayer.Team then
-                Box.Adornee = nil
+-- 4. СТАБИЛЬНЫЙ ESP (INSTANCE BASED)
+local function ApplyESP(p)
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = "XenoESP"
+    box.AlwaysOnTop = true
+    box.ZIndex = 5
+    box.Size = Vector3.new(4, 5.5, 1)
+    box.Color3 = Color3.fromRGB(255, 0, 0)
+    box.Transparency = 0.6
+    box.Parent = (game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui"))
+
+    RunService.Heartbeat:Connect(function()
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and Config.ESP then
+            if Config.TeamCheck and p.Team == LocalPlayer.Team then
+                box.Adornee = nil
             else
-                Box.Adornee = P.Character.HumanoidRootPart
+                box.Adornee = p.Character.HumanoidRootPart
             end
         else
-            Box.Adornee = nil
+            box.Adornee = nil
         end
     end)
 end
 
-for _, v in pairs(Players:GetPlayers()) do if v ~= LocalPlayer then CreateESP(v) end end
-Players.PlayerAdded:Connect(CreateESP)
-
--- 5. SPEEDHACK
+-- 5. ЦИКЛ РАБОТЫ
 RunService.RenderStepped:Connect(function()
+    if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local t = GetClosest()
+        if t then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character.Head.Position)
+        end
+    end
+    
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = Config.WalkSpeed
     end
 end)
+
+-- Инициализация ESP
+local all = Players:GetPlayers()
+for i = 1, #all do if all[i] ~= LocalPlayer then ApplyESP(all[i]) end end
+Players.PlayerAdded:Connect(ApplyESP)
+
+print("Colin's Stable Script Loaded")
